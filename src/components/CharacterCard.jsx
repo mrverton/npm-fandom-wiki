@@ -36,6 +36,10 @@ const glitchStyles = `
     81%       { border-color: rgba(57,255,138,0.6);  }
     82%       { border-color: rgba(154,163,173,0.3); }
   }
+  /* Важно: класс glitch-card теперь висит на КНОПКЕ, а не на обёртке,
+     которая держит анимацию появления (animate-fade-up). Иначе hover
+     пересчитывал "animation" на том же элементе и перезапускал fade-up
+     каждый раз при уходе курсора — отсюда и "проседание". */
   .glitch-card:hover .glitch-main {
     animation: glitch-skew 2.5s infinite linear;
   }
@@ -85,13 +89,15 @@ export default function CharacterCard({ character, index = 0 }) {
       {isTerton && (
         <style dangerouslySetInnerHTML={{ __html: glitchStyles }} />
       )}
+      {/* Обёртка отвечает ТОЛЬКО за анимацию появления при загрузке списка */}
       <div
-        style={{ animationDelay: `${index * 60}ms`, isolation: 'isolate' }}
-        className={`animate-fade-up ${isTerton ? 'glitch-card' : ''}`}
+        style={{ animationDelay: `${index * 60}ms` }}
+        className="animate-fade-up"
       >
         <button
           onClick={() => navigate(`/characters/${character.slug}`)}
-          className="group relative w-full text-left panel panel-hover overflow-hidden p-4 active:scale-[0.98] transition-all"
+          style={{ isolation: 'isolate' }}
+          className={`group relative w-full text-left panel panel-hover overflow-hidden p-4 active:scale-[0.98] transition-all ${isTerton ? 'glitch-card' : ''}`}
         >
           {isTerton && (
             <>
