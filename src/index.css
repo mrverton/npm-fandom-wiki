@@ -1,0 +1,74 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+html, body, #root {
+  height: 100%;
+  min-height: 100vh;
+}
+
+body {
+  background:
+    radial-gradient(ellipse 80% 50% at 50% -10%, rgba(47, 214, 255, 0.08), transparent),
+    radial-gradient(ellipse 60% 40% at 90% 10%, rgba(180, 83, 255, 0.06), transparent),
+    #08090c;
+}
+
+* {
+  -webkit-tap-highlight-color: transparent;
+}
+
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: #2b3040;
+  border-radius: 999px;
+}
+
+@layer components {
+  .font-display {
+    font-family: theme('fontFamily.display');
+    letter-spacing: 0.02em;
+  }
+
+  .neon-text-verton { color: theme('colors.verton.DEFAULT'); text-shadow: 0 0 12px theme('colors.verton.glow'); }
+  .neon-text-qzero { color: theme('colors.qzero.DEFAULT'); text-shadow: 0 0 12px theme('colors.qzero.glow'); }
+  .neon-text-cortex { color: theme('colors.cortex.DEFAULT'); text-shadow: 0 0 12px theme('colors.cortex.glow'); }
+  .neon-text-terton { color: theme('colors.terton.DEFAULT'); text-shadow: 0 0 10px theme('colors.terton.glow'); }
+
+  .panel {
+    @apply bg-base-900/55 border border-base-600/50 backdrop-blur-md rounded-2xl;
+  }
+
+  .panel-hover {
+    @apply transition-all duration-300 hover:border-base-600 hover:bg-base-800/80;
+  }
+
+  .safe-bottom {
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+
+  .safe-top {
+    padding-top: env(safe-area-inset-top, 0px);
+  }
+}
+
+@layer utilities {
+  .bg-scan-overlay {
+    background-image: theme('backgroundImage.scanlines');
+    background-size: 100% 3px;
+  }
+
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+}
