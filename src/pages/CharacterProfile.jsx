@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useParams, useNavigate, Navigate } from 'react-router-dom'
-import { Activity, GitBranch, Sparkles, Users2, Calendar } from 'lucide-react'
+import { Activity, GitBranch, Sparkles, Users2, Calendar, Fingerprint } from 'lucide-react'
 import Layout from '../components/Layout'
 import { TopBar } from '../components/TopBar'
 import StatusBadge from '../components/StatusBadge'
@@ -60,6 +60,9 @@ export default function CharacterProfile() {
 
           <InfoRow icon={Calendar} label="Текущая арка" accent={theme.text} value={character.arc} />
           <InfoRow icon={Users2} label="Роль" accent={theme.text} value={character.role} />
+          {character.race && (
+            <InfoRow icon={Fingerprint} label="Раса" accent={theme.text} value={character.race} />
+          )}
 
           <div>
             <div className="flex items-center gap-1.5 text-[11px] font-mono uppercase tracking-widest text-slate-500 mb-2">
