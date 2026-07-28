@@ -4,6 +4,7 @@ import { Activity, GitBranch, Sparkles, Users2, Calendar, Fingerprint } from 'lu
 import Layout from '../components/Layout'
 import { TopBar } from '../components/TopBar'
 import StatusBadge from '../components/StatusBadge'
+import SpoilerText from '../components/SpoilerText'
 import { getTheme } from '../utils/theme'
 import wikiData from '../data/wiki_data.json'
 
@@ -72,7 +73,7 @@ export default function CharacterProfile() {
               {character.abilities.map((ability, i) => (
                 <li key={i} className="flex gap-2 text-sm text-slate-300 leading-snug">
                   <span className={`shrink-0 mt-1.5 w-1 h-1 rounded-full ${theme.dot}`} />
-                  {ability}
+                  <SpoilerText text={ability} />
                 </li>
               ))}
             </ul>
@@ -129,7 +130,9 @@ export default function CharacterProfile() {
             {tab === 'bio' ? (
               <div className="space-y-3">
                 {character.biography.split('\n\n').map((para, i) => (
-                  <p key={i} className="text-sm text-slate-300 leading-relaxed">{para}</p>
+                  <p key={i} className="text-sm text-slate-300 leading-relaxed">
+                    <SpoilerText text={para} />
+                  </p>
                 ))}
               </div>
             ) : (
@@ -141,7 +144,9 @@ export default function CharacterProfile() {
                       <span className="absolute left-[2.5px] top-4 bottom-[-14px] w-px bg-base-600" />
                     )}
                     <p className={`text-sm font-semibold ${theme.text}`}>{app.episode}</p>
-                    <p className="text-sm text-slate-400 mt-0.5 leading-relaxed">{app.summary}</p>
+                    <p className="text-sm text-slate-400 mt-0.5 leading-relaxed">
+                      <SpoilerText text={app.summary} />
+                    </p>
                   </div>
                 ))}
               </div>
