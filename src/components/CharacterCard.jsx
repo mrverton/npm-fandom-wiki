@@ -43,9 +43,11 @@ const glitchStyles = `
     animation: glitch-border 2.5s infinite;
   }
   .glitch-layer {
-    position: absolute; inset: 0; border-radius: inherit;
+    position: absolute; inset: 0;
+    border-radius: inherit;
     display: flex; align-items: center; padding: 1rem;
     pointer-events: none; opacity: 0;
+    overflow: hidden;
   }
   .glitch-card:hover .glitch-layer-1 {
     animation: glitch-clip-1 2.5s infinite;
@@ -83,54 +85,58 @@ export default function CharacterCard({ character, index = 0 }) {
       {isTerton && (
         <style dangerouslySetInnerHTML={{ __html: glitchStyles }} />
       )}
-      <button
-        onClick={() => navigate(`/characters/${character.slug}`)}
-        style={{ animationDelay: `${index * 60}ms` }}
-        className={`group relative w-full text-left panel panel-hover overflow-hidden animate-fade-up p-4 active:scale-[0.98] transition-all ${isTerton ? 'glitch-card' : ''}`}
+      <div
+        style={{ animationDelay: `${index * 60}ms`, isolation: 'isolate' }}
+        className={`animate-fade-up ${isTerton ? 'glitch-card' : ''}`}
       >
-        {isTerton && (
-          <>
-            <div className="glitch-scanline" />
-            <div className="glitch-layer glitch-layer-1">
-              <div className="flex items-center gap-3.5 w-full">
-                <div className="shrink-0 w-14 h-14 rounded-xl flex items-center justify-center bg-terton/10 border border-terton/30">
-                  <span className="font-display font-bold text-xl text-qzero">{character.avatarInitial}</span>
-                </div>
-                <div className="min-w-0 flex-1">
-                  <h3 className="font-display font-semibold text-base truncate">{character.name}</h3>
-                </div>
-              </div>
-            </div>
-            <div className="glitch-layer glitch-layer-2">
-              <div className="flex items-center gap-3.5 w-full">
-                <div className="shrink-0 w-14 h-14 rounded-xl flex items-center justify-center bg-terton/10 border border-terton/30">
-                  <span className="font-display font-bold text-xl text-cortex">{character.avatarInitial}</span>
-                </div>
-                <div className="min-w-0 flex-1">
-                  <h3 className="font-display font-semibold text-base truncate">{character.name}</h3>
+        <button
+          onClick={() => navigate(`/characters/${character.slug}`)}
+          className="group relative w-full text-left panel panel-hover overflow-hidden p-4 active:scale-[0.98] transition-all"
+        >
+          {isTerton && (
+            <>
+              <div className="glitch-scanline" />
+              <div className="glitch-layer glitch-layer-1">
+                <div className="flex items-center gap-3.5 w-full">
+                  <div className="shrink-0 w-14 h-14 rounded-xl flex items-center justify-center bg-terton/10 border border-terton/30">
+                    <span className="font-display font-bold text-xl text-qzero">{character.avatarInitial}</span>
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <h3 className="font-display font-semibold text-base truncate">{character.name}</h3>
+                  </div>
                 </div>
               </div>
+              <div className="glitch-layer glitch-layer-2">
+                <div className="flex items-center gap-3.5 w-full">
+                  <div className="shrink-0 w-14 h-14 rounded-xl flex items-center justify-center bg-terton/10 border border-terton/30">
+                    <span className="font-display font-bold text-xl text-cortex">{character.avatarInitial}</span>
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <h3 className="font-display font-semibold text-base truncate">{character.name}</h3>
+                  </div>
+                </div>
+              </div>
+            </>
+          )}
+
+          <div className={`absolute inset-0 bg-gradient-to-br ${theme.gradient} opacity-40 group-hover:opacity-70 transition-opacity duration-300 pointer-events-none`} />
+
+          <div className={`relative flex items-center gap-3.5 ${isTerton ? 'glitch-main' : ''}`}>
+            <div className={`relative shrink-0 w-14 h-14 rounded-xl flex items-center justify-center border ${theme.border} ${theme.bgSoft} ${theme.shadow}`}>
+              <span className={`font-display font-bold text-xl ${theme.text}`}>{character.avatarInitial}</span>
+              <div className={`absolute inset-0 rounded-xl border ${theme.border} animate-pulse-slow`} />
             </div>
-          </>
-        )}
 
-        <div className={`absolute inset-0 bg-gradient-to-br ${theme.gradient} opacity-40 group-hover:opacity-70 transition-opacity duration-300 pointer-events-none`} />
-
-        <div className={`relative flex items-center gap-3.5 ${isTerton ? 'glitch-main' : ''}`}>
-          <div className={`relative shrink-0 w-14 h-14 rounded-xl flex items-center justify-center border ${theme.border} ${theme.bgSoft} ${theme.shadow}`}>
-            <span className={`font-display font-bold text-xl ${theme.text}`}>{character.avatarInitial}</span>
-            <div className={`absolute inset-0 rounded-xl border ${theme.border} animate-pulse-slow`} />
-          </div>
-
-          <div className="min-w-0 flex-1">
-            <h3 className="font-display font-semibold text-base text-slate-50 truncate">{character.name}</h3>
-            <p className="text-xs text-slate-500 truncate mt-0.5">{character.role}</p>
-            <div className="mt-2">
-              <StatusBadge status={character.status} size="sm" />
+            <div className="min-w-0 flex-1">
+              <h3 className="font-display font-semibold text-base text-slate-50 truncate">{character.name}</h3>
+              <p className="text-xs text-slate-500 truncate mt-0.5">{character.role}</p>
+              <div className="mt-2">
+                <StatusBadge status={character.status} size="sm" />
+              </div>
             </div>
           </div>
-        </div>
-      </button>
+        </button>
+      </div>
     </>
   )
 }
