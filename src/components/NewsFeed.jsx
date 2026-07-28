@@ -13,7 +13,7 @@ export default function NewsFeed({ news }) {
             <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-qzero opacity-75" />
             <span className="relative inline-flex rounded-full h-2 w-2 bg-qzero" />
           </span>
-          <span className="text-[11px] font-mono uppercase tracking-widest text-qzero">В эфире</span>
+          <span className="text-[11px] font-mono uppercase tracking-widest text-qzero">последняя Глава</span>
         </div>
         <Radio size={14} className="text-slate-600" />
       </div>

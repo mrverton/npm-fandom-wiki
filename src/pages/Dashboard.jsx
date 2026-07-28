@@ -24,7 +24,7 @@ const CATEGORIES = [
   {
     to: '/arcs',
     title: 'Сюжетные арки',
-    desc: 'Ядро vs Bloodness',
+    desc: '1 и 2 Глава',
     icon: BookOpen,
     accent: 'cortex',
   },
@@ -44,7 +44,7 @@ export default function Dashboard() {
       header={
         <TopBar
           title="НПМ Фандом Вики"
-          subtitle="npm fandom wiki // v2.0"
+          subtitle="npm fandom wiki // v1.0"
         />
       }
     >
