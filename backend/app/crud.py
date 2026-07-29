@@ -1,13 +1,6 @@
-"""
-Функции работы с базой данных: чтение, создание, обновление, удаление персонажей.
-Способности (abilities) и отношения (relationships) хранятся в БД как JSON-строка,
-здесь мы сериализуем/десериализуем их в python-объекты.
-"""
 import json
 from typing import List, Optional
-
 from sqlalchemy.orm import Session
-
 from . import models, schemas
 
 
@@ -35,15 +28,12 @@ def _character_to_dict(character: models.Character) -> dict:
 
 
 def get_characters(db: Session) -> List[dict]:
-    characters = db.query(models.Character).all()
-    return [_character_to_dict(c) for c in characters]
+    return [_character_to_dict(c) for c in db.query(models.Character).all()]
 
 
 def get_character(db: Session, character_id: int) -> Optional[dict]:
-    character = db.query(models.Character).filter(models.Character.id == character_id).first()
-    if not character:
-        return None
-    return _character_to_dict(character)
+    c = db.query(models.Character).filter(models.Character.id == character_id).first()
+    return _character_to_dict(c) if c else None
 
 
 def create_character(db: Session, payload: schemas.CharacterCreate) -> dict:
@@ -60,49 +50,34 @@ def create_character(db: Session, payload: schemas.CharacterCreate) -> dict:
         avatarInitial=payload.avatarInitial,
         biography=payload.biography,
         abilities=json.dumps(payload.abilities, ensure_ascii=False),
-        relationships=json.dumps(
-            [r.model_dump() for r in payload.relationships], ensure_ascii=False
-        ),
+        relationships=json.dumps([r.dict() for r in payload.relationships], ensure_ascii=False),
     )
-    for app_item in payload.appearances:
-        character.appearances.append(
-            models.Appearance(episode=app_item.episode, summary=app_item.summary)
-        )
-
+    for a in payload.appearances:
+        character.appearances.append(models.Appearance(episode=a.episode, summary=a.summary))
     db.add(character)
     db.commit()
     db.refresh(character)
     return _character_to_dict(character)
 
 
-def update_character(
-    db: Session, character_id: int, payload: schemas.CharacterUpdate
-) -> Optional[dict]:
+def update_character(db: Session, character_id: int, payload: schemas.CharacterUpdate) -> Optional[dict]:
     character = db.query(models.Character).filter(models.Character.id == character_id).first()
     if not character:
         return None
-
-    data = payload.model_dump(exclude_unset=True)
-
+    data = payload.dict(exclude_unset=True)
     if "abilities" in data:
         character.abilities = json.dumps(data.pop("abilities"), ensure_ascii=False)
-
     if "relationships" in data:
         character.relationships = json.dumps(data.pop("relationships"), ensure_ascii=False)
-
     if "appearances" in data:
         new_appearances = data.pop("appearances")
         character.appearances.clear()
-        for app_item in new_appearances:
+        for a in new_appearances:
             character.appearances.append(
-                models.Appearance(
-                    episode=app_item["episode"], summary=app_item.get("summary", "")
-                )
+                models.Appearance(episode=a["episode"], summary=a.get("summary", ""))
             )
-
     for field, value in data.items():
         setattr(character, field, value)
-
     db.commit()
     db.refresh(character)
     return _character_to_dict(character)

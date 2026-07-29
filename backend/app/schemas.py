@@ -1,6 +1,3 @@
-"""
-Pydantic-схемы для валидации входящих запросов и формирования ответов API.
-"""
 from typing import List, Optional
 from pydantic import BaseModel, Field
 
@@ -19,7 +16,7 @@ class AppearanceOut(AppearanceBase):
     id: int
 
     class Config:
-        from_attributes = True
+        orm_mode = True
 
 
 class CharacterBase(BaseModel):
@@ -43,7 +40,6 @@ class CharacterCreate(CharacterBase):
 
 
 class CharacterUpdate(BaseModel):
-    """Все поля необязательны — обновляем только то, что прислали."""
     slug: Optional[str] = None
     name: Optional[str] = None
     shortName: Optional[str] = None
@@ -78,4 +74,4 @@ class CharacterOut(BaseModel):
     appearances: List[AppearanceOut]
 
     class Config:
-        from_attributes = True
+        orm_mode = True
