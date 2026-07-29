@@ -10,4 +10,4 @@ export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localho
 // ВАЖНО: это же значение должно совпадать с ADMIN_IDS в backend/app/auth.py —
 // проверка на фронтенде нужна только чтобы показать/скрыть кнопки,
 // а настоящая защита данных происходит на сервере.
-export const ADMIN_ID = 123456789
+export const ADMIN_ID = 1510369013

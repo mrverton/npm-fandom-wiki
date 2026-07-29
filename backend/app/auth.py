@@ -15,7 +15,7 @@ from fastapi import Header, HTTPException, status
 # Впиши сюда свой Telegram ID (число, которое видно например в @userinfobot).
 # Можно перечислить несколько через запятую.
 ADMIN_IDS = {
-    123456789,  # <-- замени на свой реальный Telegram ID
+    1510369013,  # <-- замени на свой реальный Telegram ID
 }
 
 
