@@ -1,7 +1,7 @@
 import { useNavigate } from 'react-router-dom'
 import { ChevronLeft } from 'lucide-react'
 
-export function TopBar({ title, subtitle, showBack = false, accentClass = 'text-qzero' }) {
+export function TopBar({ title, subtitle, showBack = false, accentClass = 'text-qzero', actions = null }) {
   const navigate = useNavigate()
 
   return (
@@ -17,10 +17,11 @@ export function TopBar({ title, subtitle, showBack = false, accentClass = 'text-
             <ChevronLeft size={18} />
           </button>
         )}
-        <div className="min-w-0">
+        <div className="min-w-0 flex-1">
           <h1 className="font-display font-semibold text-lg text-slate-50 truncate leading-tight">{title}</h1>
           {subtitle && <p className={`text-[11px] font-mono uppercase tracking-widest ${accentClass} truncate`}>{subtitle}</p>}
         </div>
+        {actions && <div className="shrink-0 flex items-center gap-2">{actions}</div>}
       </div>
     </header>
   )

@@ -1,12 +1,13 @@
 import { useState } from 'react'
 import { useParams, useNavigate, Navigate } from 'react-router-dom'
-import { Activity, GitBranch, Sparkles, Users2, Calendar, Fingerprint } from 'lucide-react'
+import { Activity, GitBranch, Sparkles, Users2, Calendar, Fingerprint, Pencil, Loader2 } from 'lucide-react'
 import Layout from '../components/Layout'
 import { TopBar } from '../components/TopBar'
 import StatusBadge from '../components/StatusBadge'
 import SpoilerText from '../components/SpoilerText'
 import { getTheme } from '../utils/theme'
-import wikiData from '../data/wiki_data.json'
+import { useCharacters } from '../context/CharactersContext'
+import { useAdmin } from '../hooks/useAdmin'
 
 const TABS = [
   { id: 'bio', label: 'Биография' },
@@ -17,12 +18,27 @@ export default function CharacterProfile() {
   const { slug } = useParams()
   const navigate = useNavigate()
   const [tab, setTab] = useState('bio')
+  const { characters, loading } = useCharacters()
+  const { isAdmin } = useAdmin()
 
-  const character = wikiData.characters.find((c) => c.slug === slug)
-  if (!character) return <Navigate to="/characters" replace />
+  const character = characters.find((c) => c.id === slug)
+
+  if (!character) {
+    if (loading) {
+      return (
+        <Layout header={<TopBar title="Загрузка..." showBack accentClass="text-qzero" />}>
+          <div className="flex flex-col items-center justify-center text-center py-20 animate-fade-in">
+            <Loader2 size={22} className="text-slate-600 animate-spin mb-3" />
+            <p className="text-slate-500 text-sm">Загружаю персонажа...</p>
+          </div>
+        </Layout>
+      )
+    }
+    return <Navigate to="/characters" replace />
+  }
 
   const theme = getTheme(character.color)
-  const findCharacter = (id) => wikiData.characters.find((c) => c.id === id)
+  const findCharacter = (id) => characters.find((c) => c.id === id)
 
   return (
     <Layout
@@ -32,6 +48,17 @@ export default function CharacterProfile() {
           subtitle={theme.label}
           showBack
           accentClass={theme.text}
+          actions={
+            isAdmin ? (
+              <button
+                onClick={() => navigate(`/admin/edit/${character.id}`)}
+                className="flex items-center gap-1.5 rounded-full border border-cortex/50 bg-cortex/10 px-3 py-1.5 text-cortex active:scale-95 transition-transform"
+              >
+                <Pencil size={13} />
+                <span className="text-[11px] font-mono uppercase tracking-widest">Редактировать</span>
+              </button>
+            ) : null
+          }
         />
       }
     >
@@ -70,7 +97,7 @@ export default function CharacterProfile() {
               <Sparkles size={13} /> Способности
             </div>
             <ul className="space-y-1.5">
-              {character.abilities.map((ability, i) => (
+              {(character.abilities || []).map((ability, i) => (
                 <li key={i} className="flex gap-2 text-sm text-slate-300 leading-snug">
                   <span className={`shrink-0 mt-1.5 w-1 h-1 rounded-full ${theme.dot}`} />
                   <SpoilerText text={ability} />
@@ -84,14 +111,14 @@ export default function CharacterProfile() {
               <GitBranch size={13} /> Отношения
             </div>
             <div className="space-y-2">
-              {character.relationships.map((rel) => {
+              {(character.relationships || []).map((rel) => {
                 const other = findCharacter(rel.id)
                 if (!other) return null
                 const otherTheme = getTheme(other.color)
                 return (
                   <button
                     key={rel.id}
-                    onClick={() => navigate(`/characters/${other.slug}`)}
+                    onClick={() => navigate(`/characters/${other.id}`)}
                     className="w-full flex items-center gap-3 rounded-xl border border-base-600/50 bg-base-800/50 hover:bg-base-800 hover:border-base-600 p-2.5 transition-colors text-left"
                   >
                     <div className={`shrink-0 w-9 h-9 rounded-lg flex items-center justify-center border ${otherTheme.border} ${otherTheme.bgSoft}`}>
@@ -137,7 +164,7 @@ export default function CharacterProfile() {
               </div>
             ) : (
               <div className="space-y-3">
-                {character.appearances.map((app, i) => (
+                {(character.appearances || []).map((app, i) => (
                   <div key={i} className="relative pl-4">
                     <span className={`absolute left-0 top-1.5 w-1.5 h-1.5 rounded-full ${theme.dot}`} />
                     {i < character.appearances.length - 1 && (
@@ -159,6 +186,7 @@ export default function CharacterProfile() {
 }
 
 function InfoRow({ icon: Icon, label, value, accent }) {
+  if (!value) return null
   return (
     <div className="flex items-start gap-2.5">
       <Icon size={15} className={`shrink-0 mt-0.5 ${accent}`} />

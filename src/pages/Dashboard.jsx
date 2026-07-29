@@ -4,31 +4,9 @@ import Layout from '../components/Layout'
 import { TopBar } from '../components/TopBar'
 import SearchBar from '../components/SearchBar'
 import NewsFeed from '../components/NewsFeed'
-import wikiData from '../data/wiki_data.json'
-
-const CATEGORIES = [
-  {
-    to: '/characters',
-    title: 'Персонажи',
-    desc: `${wikiData.characters.length} записи в базе`,
-    icon: Users,
-    accent: 'verton',
-  },
-  {
-    to: '/timeline',
-    title: 'Хронология серий',
-    desc: '2 эпизода в архиве',
-    icon: Clock,
-    accent: 'qzero',
-  },
-  {
-    to: '/arcs',
-    title: 'Сюжетные арки',
-    desc: '1 и 2 Глава',
-    icon: BookOpen,
-    accent: 'cortex',
-  },
-]
+import AdminBadge from '../components/AdminBadge'
+import { useCharacters } from '../context/CharactersContext'
+import { useAdmin } from '../hooks/useAdmin'
 
 const ACCENT_CLASSES = {
   verton: { border: 'border-verton/40', bg: 'bg-verton/10', text: 'text-verton', shadow: 'shadow-neon-verton' },
@@ -38,6 +16,32 @@ const ACCENT_CLASSES = {
 
 export default function Dashboard() {
   const navigate = useNavigate()
+  const { characters, series } = useCharacters()
+  const { isAdmin } = useAdmin()
+
+  const categories = [
+    {
+      to: '/characters',
+      title: 'Персонажи',
+      desc: `${characters.length} записи в базе`,
+      icon: Users,
+      accent: 'verton',
+    },
+    {
+      to: '/timeline',
+      title: 'Хронология серий',
+      desc: '2 эпизода в архиве',
+      icon: Clock,
+      accent: 'qzero',
+    },
+    {
+      to: '/arcs',
+      title: 'Сюжетные арки',
+      desc: '1 и 2 Глава',
+      icon: BookOpen,
+      accent: 'cortex',
+    },
+  ]
 
   return (
     <Layout
@@ -45,6 +49,7 @@ export default function Dashboard() {
         <TopBar
           title="НПМ Фандом Вики"
           subtitle="npm fandom wiki // v1.0"
+          actions={isAdmin ? <AdminBadge /> : null}
         />
       }
     >
@@ -57,7 +62,7 @@ export default function Dashboard() {
         </div>
 
         <section className="grid grid-cols-1 gap-3">
-          {CATEGORIES.map((cat, i) => {
+          {categories.map((cat, i) => {
             const Icon = cat.icon
             const a = ACCENT_CLASSES[cat.accent]
             return (
@@ -84,7 +89,7 @@ export default function Dashboard() {
             <Zap size={14} className="text-amber-signal" />
             <h2 className="text-xs font-mono uppercase tracking-widest text-slate-500">Лента новостей</h2>
           </div>
-          <NewsFeed news={wikiData.series.latestNews} />
+          <NewsFeed news={series.latestNews} />
         </section>
       </div>
     </Layout>

@@ -1,28 +1,29 @@
 import { useMemo, useState } from 'react'
-import { Users } from 'lucide-react'
+import { Users, Loader2 } from 'lucide-react'
 import Layout from '../components/Layout'
 import { TopBar } from '../components/TopBar'
 import SearchBar from '../components/SearchBar'
 import CharacterCard from '../components/CharacterCard'
-import wikiData from '../data/wiki_data.json'
+import { useCharacters } from '../context/CharactersContext'
 
 export default function CharacterList() {
   const [query, setQuery] = useState('')
+  const { characters, loading } = useCharacters()
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase()
-    if (!q) return wikiData.characters
-    return wikiData.characters.filter((c) =>
-      [c.name, c.role, c.status, c.arc].some((field) => field.toLowerCase().includes(q))
+    if (!q) return characters
+    return characters.filter((c) =>
+      [c.name, c.role, c.status, c.arc].filter(Boolean).some((field) => field.toLowerCase().includes(q))
     )
-  }, [query])
+  }, [query, characters])
 
   return (
     <Layout
       header={
         <TopBar
           title="Список персонажей"
-          subtitle={`${wikiData.characters.length} записи в реестре`}
+          subtitle={`${characters.length} записи в реестре`}
           showBack
           accentClass="text-verton"
         />
@@ -33,7 +34,12 @@ export default function CharacterList() {
           <SearchBar value={query} onChange={setQuery} placeholder="Найти персонажа..." />
         </div>
 
-        {filtered.length > 0 ? (
+        {loading && characters.length === 0 ? (
+          <div className="flex flex-col items-center justify-center text-center py-16 animate-fade-in">
+            <Loader2 size={22} className="text-slate-600 animate-spin mb-3" />
+            <p className="text-slate-500 text-sm">Загружаю персонажей...</p>
+          </div>
+        ) : filtered.length > 0 ? (
           <div className="grid grid-cols-1 gap-3">
             {filtered.map((c, i) => (
               <CharacterCard key={c.id} character={c} index={i} />

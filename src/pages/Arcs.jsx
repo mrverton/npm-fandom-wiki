@@ -2,7 +2,7 @@ import { useNavigate } from 'react-router-dom'
 import { BookOpen, ArrowRight } from 'lucide-react'
 import Layout from '../components/Layout'
 import { TopBar } from '../components/TopBar'
-import wikiData from '../data/wiki_data.json'
+import { useCharacters } from '../context/CharactersContext'
 
 const ARCS = [
   {
@@ -29,6 +29,7 @@ const ARCS = [
 
 export default function Arcs() {
   const navigate = useNavigate()
+  const { characters } = useCharacters()
 
   return (
     <Layout
@@ -53,12 +54,12 @@ export default function Arcs() {
             <div className="flex items-center justify-between mt-3">
               <div className="flex -space-x-2">
                 {arc.characters.map((id) => {
-                  const c = wikiData.characters.find((ch) => ch.id === id)
+                  const c = characters.find((ch) => ch.id === id)
                   if (!c) return null
                   return (
                     <button
                       key={id}
-                      onClick={() => navigate(`/characters/${c.slug}`)}
+                      onClick={() => navigate(`/characters/${c.id}`)}
                       className={`w-8 h-8 rounded-full flex items-center justify-center border-2 border-base-900 ${arc.bg} active:scale-90 transition-transform`}
                       title={c.name}
                     >

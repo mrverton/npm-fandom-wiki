@@ -1,0 +1,5 @@
+__pycache__/
+*.pyc
+npm_wiki.db
+.venv/
+venv/
