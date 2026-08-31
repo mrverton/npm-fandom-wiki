@@ -68,7 +68,7 @@ export default function AdminCharacterForm() {
       shortName: existing.shortName,
       color: existing.color,
       status: existing.status,
-      arc: existing.arc || '',
+      arc: existing.arc && !existing.arc.includes('Эпизод') ? existing.arc : '1 Арка',
       role: existing.role || '',
       occupation: existing.occupation || '',
       race: existing.race || '',
@@ -309,7 +309,7 @@ export default function AdminCharacterForm() {
                   className={inputClass()}
                   value={form.arc}
                   onChange={(e) => update('arc', e.target.value)}
-                  placeholder="Эпизод 2: Bloodness Income"
+                  placeholder="1 Арка"
               />
             </div>
 
