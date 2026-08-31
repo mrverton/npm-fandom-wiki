@@ -19,6 +19,9 @@ export default function Dashboard() {
   const { characters, series } = useCharacters()
   const { isAdmin } = useAdmin()
 
+  // Динамически вычисляем количество арок или серий на основе данных
+  const totalArcsCount = series?.storyArcs?.length || 2; // Авто-подсчет из нового JSON от Claude
+
   const categories = [
     {
       to: '/characters',
@@ -37,61 +40,63 @@ export default function Dashboard() {
     {
       to: '/arcs',
       title: 'Сюжетные арки',
-      desc: '1 и 2 Глава',
+      // ИСПРАВЛЕНО: Теперь вместо "1 и 2 Глава" пишется каноничное "Активные арки: 2"
+      desc: `Активные арки: ${totalArcsCount}`,
       icon: BookOpen,
       accent: 'cortex',
     },
   ]
 
   return (
-    <Layout
-      header={
-        <TopBar
-          title="НПМ Фандом Вики"
-          subtitle="npm fandom wiki // v1.0"
-          actions={isAdmin ? <AdminBadge /> : null}
-        />
-      }
-    >
-      <div className="space-y-5">
-        <div
-          className="animate-fade-up"
-          onClick={() => navigate('/characters')}
-        >
-          <SearchBar value="" onChange={() => navigate('/characters')} />
-        </div>
-
-        <section className="grid grid-cols-1 gap-3">
-          {categories.map((cat, i) => {
-            const Icon = cat.icon
-            const a = ACCENT_CLASSES[cat.accent]
-            return (
-              <button
-                key={cat.to}
-                onClick={() => navigate(cat.to)}
-                style={{ animationDelay: `${i * 70}ms` }}
-                className="animate-fade-up panel panel-hover flex items-center gap-4 p-4 text-left active:scale-[0.98] transition-transform"
-              >
-                <div className={`shrink-0 w-12 h-12 rounded-xl flex items-center justify-center border ${a.border} ${a.bg} ${a.shadow}`}>
-                  <Icon size={22} className={a.text} strokeWidth={2} />
-                </div>
-                <div className="min-w-0">
-                  <h3 className="font-display font-semibold text-slate-50">{cat.title}</h3>
-                  <p className="text-xs text-slate-500">{cat.desc}</p>
-                </div>
-              </button>
-            )
-          })}
-        </section>
-
-        <section className="space-y-2">
-          <div className="flex items-center gap-2 px-1">
-            <Zap size={14} className="text-amber-signal" />
-            <h2 className="text-xs font-mono uppercase tracking-widest text-slate-500">Лента новостей</h2>
+      <Layout
+          header={
+            <TopBar
+                title="НПМ Фандом Вики"
+                subtitle="npm fandom wiki // v1.0"
+                actions={isAdmin ? <AdminBadge /> : null}
+            />
+          }
+      >
+        <div className="space-y-5">
+          <div
+              className="animate-fade-up"
+              onClick={() => navigate('/characters')}
+          >
+            <SearchBar value="" onChange={() => navigate('/characters')} />
           </div>
-          <NewsFeed news={series.latestNews} />
-        </section>
-      </div>
-    </Layout>
+
+          <section className="grid grid-cols-1 gap-3">
+            {categories.map((cat, i) => {
+              const Icon = cat.icon
+              const a = ACCENT_CLASSES[cat.accent]
+              return (
+                  <button
+                      key={cat.to}
+                      onClick={() => navigate(cat.to)}
+                      style={{ animationDelay: `${i * 70}ms` }}
+                      className="animate-fade-up panel panel-hover flex items-center gap-4 p-4 text-left active:scale-[0.98] transition-transform"
+                  >
+                    <div className={`shrink-0 w-12 h-12 rounded-xl flex items-center justify-center border ${a.border} ${a.bg} ${a.shadow}`}>
+                      <Icon size={22} className={a.text} strokeWidth={2} />
+                    </div>
+                    <div className="min-w-0">
+                      <h3 className="font-display font-semibold text-slate-50">{cat.title}</h3>
+                      <p className="text-xs text-slate-500">{cat.desc}</p>
+                    </div>
+                  </button>
+              )
+            })}
+          </section>
+
+          <section className="space-y-2">
+            <div className="flex items-center gap-2 px-1">
+              <Zap size={14} className="text-amber-signal" />
+              <h2 className="text-xs font-mono uppercase tracking-widest text-slate-500">Лента новостей</h2>
+            </div>
+            {/* Компонент NewsFeed внутри сам подхватит маркер "ПОСЛЕДНЯЯ СЕРИЯ" из нового JSON от Claude */}
+            <NewsFeed news={series.latestNews} />
+          </section>
+        </div>
+      </Layout>
   )
 }
