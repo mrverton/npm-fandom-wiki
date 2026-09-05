@@ -268,7 +268,7 @@ export default function Timeline() {
           <h1
               className="npmu-title font-display font-bold tracking-[0.15em] text-2xl mt-1 bg-clip-text text-transparent bg-gradient-to-b from-amber-100 via-amber-300 to-amber-500"
           >
-            NPM UNIVERSE
+            НПМ UNIVERSE
           </h1>
           <p className="text-[11px] font-mono uppercase tracking-widest text-amber-200/40 mt-0.5">
             Священная линия времени
