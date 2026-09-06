@@ -6,18 +6,23 @@ import { useCharacters } from '../context/CharactersContext'
 import { useTelegram } from '../hooks/useTelegram'
 
 /**
+ * ИСТОЧНИК ИСТИНЫ: series.arcs (см. также Arcs.jsx — оба экрана читают
+ * ОДНО и то же поле, чтобы данные не расходились).
+ *
  * ОЖИДАЕМАЯ ФОРМА ДАННЫХ (необязательна — компонент безопасно работает и без неё):
  *
  * series.arcs = [
  *   {
  *     id: 'arc-0' | 'arc-1' | 'arc-2' | 'arc-3' | 'arc-rr',
  *     title: '0 Арка',
+ *     desc: 'текст описания арки' | description: '...',
  *     status: 'Доступна' | 'В разработке',
  *     isAvailable: true | false,
- *     description: 'текст описания арки',
+ *     characters: ['verton', 'qzero', ...],   // не используется на этом экране,
+ *                                              // но входит в общую схему (см. Arcs.jsx)
  *     episodes: [
- *       { number: 1, title: 'Детство', desc: '...' },
- *       { number: 2, title: 'Bloodness Income', desc: '...' },
+ *       { number: 1, title: 'Детство', desc: '...' | description: '...' },
+ *       { number: 2, title: 'Bloodness Income', desc: '...' | description: '...' },
  *     ],
  *   },
  *   ...
@@ -441,7 +446,7 @@ export default function Timeline() {
             <>
               <div
                   onClick={closeArc}
-                  className={`fixed inset-0 z-50 bg-black/70 backdrop-blur-sm transition-opacity duration-200 ${
+                  className={`fixed inset-0 z-50 bg-black/70 backdrop-blur-md transition-opacity duration-200 ${
                       sheetVisible ? 'opacity-100' : 'opacity-0'
                   }`}
               />
