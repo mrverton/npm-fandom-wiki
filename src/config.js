@@ -3,7 +3,7 @@
 // переменную окружения VITE_API_BASE_URL в настройках Netlify
 // (Site configuration → Environment variables) со значением адреса
 // твоего задеплоенного бэкенда, например https://npm-wiki-api.onrender.com
-export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000'
+export const API_BASE_URL = 'https://npm-fandom-wiki.onrender.com'
 
 // Telegram ID администратора(ов), которым доступна админ-панель.
 // Узнать свой ID можно у бота @userinfobot в Telegram.
