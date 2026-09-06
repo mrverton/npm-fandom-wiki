@@ -129,7 +129,7 @@ export default function AdminCharacterForm() {
       shortName: form.shortName.trim(),
       color: form.color,
       status: form.status,
-      arc: form.arc.trim(),
+      arc: form.arc && !form.arc.includes('Эпизод') ? form.arc.trim() : '1 Арка',
       role: form.role.trim(),
       occupation: form.occupation.trim(),
       race: form.race.trim() || null,
@@ -307,7 +307,7 @@ export default function AdminCharacterForm() {
               <label className={labelClass()}>Текущая арка</label>
               <input
                   className={inputClass()}
-                  value={form.arc}
+                  value={form.arc && !form.arc.includes('Эпизод') ? form.arc : '1 Арка'}
                   onChange={(e) => update('arc', e.target.value)}
                   placeholder="1 Арка"
               />
