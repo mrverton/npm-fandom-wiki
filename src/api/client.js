@@ -12,17 +12,32 @@ function getTelegramUserId() {
   }
 }
 
-async function request(path, { method = 'GET', body, requireAuth = false } = {}) {
-  const headers = { 'Content-Type': 'application/json' }
+async function request(
+    path,
+    {
+      method = 'GET',
+      body,
+      requireAuth = false,
+    } = {},
+) {
+  const headers = {}
+
+  // Content-Type нужен только когда реально отправляем JSON.
+  if (body !== undefined) {
+    headers['Content-Type'] = 'application/json'
+  }
 
   if (requireAuth) {
     const userId = getTelegramUserId()
+
     if (userId) {
       headers['X-Telegram-User-Id'] = String(userId)
     }
   }
 
-  const res = await fetch(`${API_BASE_URL}${path}`, {
+  const url = `${API_BASE_URL}${path}`
+
+  const res = await fetch(url, {
     method,
     headers,
     body: body !== undefined ? JSON.stringify(body) : undefined,
@@ -30,30 +45,71 @@ async function request(path, { method = 'GET', body, requireAuth = false } = {})
 
   if (!res.ok) {
     let detail = `Ошибка запроса (${res.status})`
+
     try {
       const errJson = await res.json()
-      detail = errJson.detail || detail
+
+      if (errJson?.detail) {
+        detail =
+            typeof errJson.detail === 'string'
+                ? errJson.detail
+                : JSON.stringify(errJson.detail)
+      }
     } catch {
-      /* тело не JSON — оставляем стандартное сообщение */
+      // Ответ не JSON — оставляем стандартное сообщение.
     }
+
     const error = new Error(detail)
     error.status = res.status
+
     throw error
   }
 
-  if (res.status === 204) return null
-  return res.json()
+  // DELETE может вернуть 204 No Content.
+  if (res.status === 204) {
+    return null
+  }
+
+  // Защита от пустого ответа.
+  const text = await res.text()
+
+  if (!text) {
+    return null
+  }
+
+  try {
+    return JSON.parse(text)
+  } catch {
+    return text
+  }
 }
 
 export const api = {
-  getCharacters: () => request('/api/characters'),
-  getCharacter: (id) => request(`/api/characters/${id}`),
+  getCharacters: () =>
+      request('/api/characters'),
+
+  getCharacter: (id) =>
+      request(`/api/characters/${id}`),
+
   createCharacter: (payload) =>
-    request('/api/characters', { method: 'POST', body: payload, requireAuth: true }),
+      request('/api/characters', {
+        method: 'POST',
+        body: payload,
+        requireAuth: true,
+      }),
+
   updateCharacter: (id, payload) =>
-    request(`/api/characters/${id}`, { method: 'PUT', body: payload, requireAuth: true }),
+      request(`/api/characters/${id}`, {
+        method: 'PUT',
+        body: payload,
+        requireAuth: true,
+      }),
+
   deleteCharacter: (id) =>
-    request(`/api/characters/${id}`, { method: 'DELETE', requireAuth: true }),
+      request(`/api/characters/${id}`, {
+        method: 'DELETE',
+        requireAuth: true,
+      }),
 }
 
 export { getTelegramUserId }
