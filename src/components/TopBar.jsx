@@ -1,8 +1,8 @@
-import { useNavigate } from 'react-router-dom'
+import { useBackNavigation } from '../hooks/useBackNavigation'
 import { ChevronLeft } from 'lucide-react'
 
 export function TopBar({ title, subtitle, showBack = false, accentClass = 'text-qzero', actions = null }) {
-  const navigate = useNavigate()
+  const goBack = useBackNavigation()
 
   return (
     <header className="sticky top-0 z-30 safe-top">
@@ -10,8 +10,9 @@ export function TopBar({ title, subtitle, showBack = false, accentClass = 'text-
       <div className="relative max-w-lg mx-auto px-4 py-3.5 flex items-center gap-3">
         {showBack && (
           <button
-            onClick={() => navigate(-1)}
-            className="shrink-0 flex items-center justify-center w-9 h-9 rounded-full border border-base-600/60 bg-base-850/70 text-slate-300 hover:text-white hover:border-base-600 active:scale-95 transition-all"
+            onClick={goBack}
+            type="button"
+            className="icon-button"
             aria-label="Назад"
           >
             <ChevronLeft size={18} />

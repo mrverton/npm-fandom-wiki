@@ -1,0 +1,9 @@
+@keyframes timelineFlow { from { stroke-dashoffset: 240; } to { stroke-dashoffset: 0; } }
+@keyframes timelineBreathe { 0%, 100% { opacity: .65; } 50% { opacity: 1; } }
+@keyframes timelineStar { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.12); } }
+.timeline-flow { animation: timelineFlow 4.5s linear infinite; }
+.timeline-thread { animation: timelineBreathe 3.6s ease-in-out infinite; }
+.timeline-star { animation: timelineStar 2.4s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) {
+  .timeline-flow, .timeline-thread, .timeline-star { animation: none; }
+}

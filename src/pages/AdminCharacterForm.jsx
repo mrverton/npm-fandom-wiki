@@ -1,469 +1,130 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { Plus, Trash2, Save, Loader2, AlertTriangle, RefreshCw } from 'lucide-react'
-import Layout from '../components/Layout'
-import { TopBar } from '../components/TopBar'
-import { useCharacters } from '../context/CharactersContext'
-
-const COLOR_OPTIONS = [
-  { value: 'verton', label: 'Зелёный (Вертон)' },
-  { value: 'qzero', label: 'Неоновый синий (Кьюзеро)' },
-  { value: 'cortex', label: 'Фиолетовый (Кортекс)' },
-  { value: 'terton', label: 'Призрачно-серый (Тертон)' },
-]
-
-const STATUS_OPTIONS = ['Жив', 'Жива', 'Мертв', 'Неизвестно', 'Связь потеряна']
-
-const emptyForm = {
-  slug: '',
-  name: '',
-  shortName: '',
-  color: 'qzero',
-  status: 'Жив',
-  arc: '',
-  role: '',
-  occupation: '',
-  race: '',
-  avatarInitial: '',
-  biography: '',
-  abilities: [''],
-  relationships: [{ id: '', description: '' }],
-  appearances: [{ episode: '', summary: '' }],
-}
-
-function inputClass() {
-  return 'w-full bg-base-800/70 border border-base-600/60 rounded-xl px-3.5 py-2.5 text-sm text-slate-100 placeholder:text-slate-500 outline-none focus:border-qzero/60 transition-colors'
-}
-
-function labelClass() {
-  return 'block text-[11px] font-mono uppercase tracking-widest text-slate-500 mb-1.5'
-}
+import { Save } from 'lucide-react'
+import Layout from '../components/Layout.jsx'
+import { TopBar } from '../components/TopBar.jsx'
+import { useCharacters } from '../context/CharactersContext.jsx'
+import { CHARACTER_COLORS, CHARACTER_STATUSES, toCharacterForm, validateCharacter } from '../models/character.js'
+import { useUnsavedChanges } from '../hooks/useUnsavedChanges.js'
+import AsyncState from '../components/common/AsyncState.jsx'
+import Button from '../components/common/Button.jsx'
+import Field from '../components/common/Field.jsx'
+import Dialog from '../components/common/Dialog.jsx'
+import CharacterCollections from '../components/admin/CharacterCollections.jsx'
 
 export default function AdminCharacterForm() {
   const { slug } = useParams()
-  const isEditMode = Boolean(slug)
-  const navigate = useNavigate()
-  const { characters, addCharacter, editCharacter, loading, usingFallback, reload } = useCharacters()
+  return <EditorLoader key={slug || 'new'} slug={slug} />
+}
 
-  const [form, setForm] = useState(emptyForm)
-  const [saving, setSaving] = useState(false)
-  const [errorMsg, setErrorMsg] = useState(null)
-
-  const existing = isEditMode ? characters.find((c) => c.id === slug) : null
-
-  // ВАЖНО: это фикс "гонки" — при первом открытии приложения список
-  // персонажей какое-то время ещё содержит локальный fallback (dbId: null),
-  // пока идёт запрос к бэкенду (особенно на Render Free он может занимать
-  // 50+ секунд после "засыпания"). Раньше форма позволяла заполнить всё
-  // и только на "Сохранить" внезапно падала с ошибкой синхронизации.
-  // Теперь мы явно показываем это состояние заранее и не даём сохранить,
-  // пока не убедимся, что у персонажа есть настоящий dbId с бэкенда.
-  const notSyncedYet = isEditMode && existing && existing.dbId == null
-
+function EditorLoader({ slug }) {
+  const { characters, loading, source } = useCharacters()
+  const [session, setSession] = useState(null)
+  const existing = characters.find(character => character.slug === slug)
+  // Capture exactly one server snapshot for this route. Subsequent reloads never reset a draft.
   useEffect(() => {
-    if (!isEditMode || !existing) return
-    setForm({
-      slug: existing.slug,
-      name: existing.name,
-      shortName: existing.shortName,
-      color: existing.color,
-      status: existing.status,
-      arc: existing.arc && !existing.arc.includes('Эпизод') ? existing.arc : '1 Арка',
-      role: existing.role || '',
-      occupation: existing.occupation || '',
-      race: existing.race || '',
-      avatarInitial: existing.avatarInitial || '',
-      biography: existing.biography || '',
-      abilities: existing.abilities?.length ? existing.abilities : [''],
-      relationships: existing.relationships?.length
-          ? existing.relationships
-          : [{ id: '', description: '' }],
-      appearances: existing.appearances?.length
-          ? existing.appearances.map((a) => ({ episode: a.episode, summary: a.summary }))
-          : [{ episode: '', summary: '' }],
-    })
-    // Перечитываем форму заново каждый раз, когда персонаж догружается
-    // (например dbId появился после того как бэкенд наконец ответил).
-  }, [isEditMode, existing])
+    if (!session && source === 'api' && (!slug || existing)) setSession({ initial: existing || null })
+  }, [session, source, slug, existing])
+  return <Layout header={<TopBar title={slug ? 'Редактировать персонажа' : 'Новый персонаж'} subtitle="редактор вики" showBack accentClass="text-cortex" />}>
+    {session ? <CharacterEditor initial={session.initial} /> : loading ? <AsyncState loading /> : <AsyncState title={source === 'api' ? 'Персонаж не найден' : 'Редактор недоступен'}>{source === 'api' ? 'Проверьте ссылку или откройте каталог.' : 'Для редактирования нужен актуальный ответ сервера.'}</AsyncState>}
+  </Layout>
+}
 
-  const update = (field, value) => setForm((f) => ({ ...f, [field]: value }))
-
-  const updateListItem = (field, index, value) => {
-    setForm((f) => {
-      const list = [...f[field]]
-      list[index] = value
-      return { ...f, [field]: list }
-    })
+export function CharacterEditor({ initial }) {
+  const navigate = useNavigate()
+  const { characters, canMutate, addCharacter, editCharacter } = useCharacters()
+  const [record, setRecord] = useState(initial)
+  const [baseline, setBaseline] = useState(() => toCharacterForm(initial))
+  const [form, setForm] = useState(() => toCharacterForm(initial))
+  const [operation, setOperation] = useState({ status: 'idle', message: '' })
+  const [errors, setErrors] = useState({})
+  const [resetOpen, setResetOpen] = useState(false)
+  const mounted = useRef(true)
+  const submittingRef = useRef(false)
+  useEffect(() => { mounted.current = true; return () => { mounted.current = false } }, [])
+  const dirty = JSON.stringify(form) !== JSON.stringify(baseline)
+  const submitting = operation.status === 'submitting'
+  const blocker = useUnsavedChanges(dirty || submitting)
+  const latest = record ? characters.find(character => character.id === record.id) : null
+  const stale = record && (!latest || latest.version !== record.version)
+  const update = (field, value) => {
+    setForm(previous => ({ ...previous, [field]: value }))
+    setOperation({ status: 'idle', message: '' })
   }
+  const field = (name, label, props = {}) => <Field name={name} label={label} value={form[name]} onChange={event => update(name, event.target.value)} error={errors[name]} {...props} />
 
-  const updateObjectListItem = (field, index, key, value) => {
-    setForm((f) => {
-      const list = [...f[field]]
-      list[index] = { ...list[index], [key]: value }
-      return { ...f, [field]: list }
-    })
-  }
-
-  const addListItem = (field, emptyValue) => {
-    setForm((f) => ({ ...f, [field]: [...f[field], emptyValue] }))
-  }
-
-  const removeListItem = (field, index) => {
-    setForm((f) => ({ ...f, [field]: f[field].filter((_, i) => i !== index) }))
-  }
-
-  const handleSubmit = async (e) => {
-    e.preventDefault()
-    setErrorMsg(null)
-
-    if (notSyncedYet) {
-      setErrorMsg(
-          'Бэкенд ещё не прогрузился (или недоступен) — сохранять сейчас нельзя, чтобы не потерять изменения. Нажми «Обновить данные» выше и попробуй снова.'
-      )
+  async function submit(event) {
+    event.preventDefault()
+    if (submittingRef.current || !canMutate) return
+    const validation = validateCharacter(form)
+    setErrors(validation)
+    if (Object.keys(validation).length) {
+      setOperation({ status: 'error', message: 'Проверьте отмеченные поля.' })
       return
     }
-
-    const payload = {
-      slug: form.slug.trim(),
-      name: form.name.trim(),
-      shortName: form.shortName.trim(),
-      color: form.color,
-      status: form.status,
-      arc: form.arc && !form.arc.includes('Эпизод') ? form.arc.trim() : '1 Арка',
-      role: form.role.trim(),
-      occupation: form.occupation.trim(),
-      race: form.race.trim() || null,
-      avatarInitial: form.avatarInitial.trim() || '?',
-      biography: form.biography,
-      abilities: form.abilities.map((a) => a.trim()).filter(Boolean),
-      relationships: form.relationships
-          .filter((r) => r.id.trim() && r.description.trim())
-          .map((r) => ({ id: r.id.trim(), description: r.description.trim() })),
-      appearances: form.appearances
-          .filter((a) => a.episode.trim())
-          .map((a) => ({ episode: a.episode.trim(), summary: a.summary.trim() })),
-    }
-
-    if (!payload.slug || !payload.name || !payload.shortName) {
-      setErrorMsg('Заполни хотя бы slug, имя и короткое имя персонажа.')
-      return
-    }
-
-    setSaving(true)
+    submittingRef.current = true
+    setOperation({ status: 'submitting', message: '' })
     try {
-      if (isEditMode) {
-        // existing.dbId гарантированно не null здесь благодаря проверке
-        // notSyncedYet выше — используем именно числовой ID из базы,
-        // а не строковый slug (slug некуда передавать в PUT /api/characters/{id}).
-        await editCharacter(existing.dbId, payload)
-      } else {
-        await addCharacter(payload)
-      }
-      navigate('/admin')
-    } catch (err) {
-      setErrorMsg(err.message || 'Не удалось сохранить персонажа')
-    } finally {
-      setSaving(false)
-    }
+      const saved = record ? await editCharacter(record.id, { ...form, version: record.version }) : await addCharacter(form)
+      if (!mounted.current) return
+      const savedForm = toCharacterForm(saved)
+      setRecord(saved)
+      setForm(savedForm)
+      setBaseline(savedForm)
+      setOperation({ status: 'success', message: 'Изменения сохранены на сервере.' })
+    } catch (error) {
+      if (!mounted.current) return
+      setOperation({ status: 'error', message: error.message })
+      setErrors(Object.fromEntries((error.fields || []).map(({ field: key, message }) => [String(key).replace(/^(body\.)/, '').replace(/^(relationships\.\d+)\.id$/, '$1.slug'), message])))
+    } finally { submittingRef.current = false }
   }
 
-  // Показываем спиннер, пока идёт самая первая загрузка списка персонажей
-  // и мы ещё даже не знаем, есть ли персонаж и его dbId.
-  if (isEditMode && loading && !existing) {
-    return (
-        <Layout header={<TopBar title="Загрузка..." showBack accentClass="text-cortex" />}>
-          <div className="flex flex-col items-center justify-center text-center py-20 animate-fade-in">
-            <Loader2 size={22} className="text-slate-600 animate-spin mb-3" />
-            <p className="text-slate-500 text-sm">Загружаю данные персонажа...</p>
-          </div>
-        </Layout>
-    )
+  function reset() {
+    const current = latest || record
+    const next = toCharacterForm(current)
+    setRecord(current)
+    setForm(next)
+    setBaseline(next)
+    setErrors({})
+    setOperation({ status: 'idle', message: '' })
+    setResetOpen(false)
   }
 
-  return (
-      <Layout
-          header={
-            <TopBar
-                title={isEditMode ? 'Редактировать персонажа' : 'Новый персонаж'}
-                subtitle="admin panel"
-                showBack
-                accentClass="text-cortex"
-            />
-          }
-      >
-        <form onSubmit={handleSubmit} className="space-y-4 pb-4">
-          {notSyncedYet && (
-              <div className="panel p-3.5 border border-amber-signal/40 flex items-start gap-2.5 animate-fade-up">
-                <AlertTriangle size={16} className="text-amber-signal shrink-0 mt-0.5" />
-                <div className="flex-1">
-                  <p className="text-xs text-amber-signal leading-snug">
-                    {usingFallback
-                        ? 'Бэкенд сейчас недоступен, показаны локальные данные. Сохранение отключено, пока связь не восстановится.'
-                        : 'Данные этого персонажа с бэкенда ещё грузятся (это нормально сразу после "пробуждения" Render — может занять до минуты).'}
-                  </p>
-                  <button
-                      type="button"
-                      onClick={reload}
-                      className="mt-2 flex items-center gap-1.5 text-xs text-amber-signal underline underline-offset-2"
-                  >
-                    <RefreshCw size={12} className={loading ? 'animate-spin' : ''} />
-                    Обновить данные
-                  </button>
-                </div>
-              </div>
-          )}
-
-          {errorMsg && (
-              <div className="panel p-3.5 border border-rose-500/40 text-xs text-rose-400 leading-snug">
-                {errorMsg}
-              </div>
-          )}
-
-          <div className="panel p-4 space-y-3">
-            <h3 className="text-xs font-mono uppercase tracking-widest text-slate-500">Основное</h3>
-
-            <div>
-              <label className={labelClass()}>Slug (латиницей, для ссылки)</label>
-              <input
-                  className={inputClass()}
-                  value={form.slug}
-                  onChange={(e) => update('slug', e.target.value)}
-                  placeholder="например: newchar"
-                  disabled={isEditMode}
-              />
-            </div>
-
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className={labelClass()}>Полное имя</label>
-                <input
-                    className={inputClass()}
-                    value={form.name}
-                    onChange={(e) => update('name', e.target.value)}
-                    placeholder="Мистер Икс"
-                />
-              </div>
-              <div>
-                <label className={labelClass()}>Короткое имя</label>
-                <input
-                    className={inputClass()}
-                    value={form.shortName}
-                    onChange={(e) => update('shortName', e.target.value)}
-                    placeholder="Икс"
-                />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className={labelClass()}>Цветовая тема</label>
-                <select
-                    className={inputClass()}
-                    value={form.color}
-                    onChange={(e) => update('color', e.target.value)}
-                >
-                  {COLOR_OPTIONS.map((c) => (
-                      <option key={c.value} value={c.value}>{c.label}</option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label className={labelClass()}>Статус</label>
-                <select
-                    className={inputClass()}
-                    value={form.status}
-                    onChange={(e) => update('status', e.target.value)}
-                >
-                  {STATUS_OPTIONS.map((s) => (
-                      <option key={s} value={s}>{s}</option>
-                  ))}
-                </select>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className={labelClass()}>Раса (необязательно)</label>
-                <input
-                    className={inputClass()}
-                    value={form.race}
-                    onChange={(e) => update('race', e.target.value)}
-                    placeholder="Человек / оставь пустым"
-                />
-              </div>
-              <div>
-                <label className={labelClass()}>Инициал аватара</label>
-                <input
-                    className={inputClass()}
-                    value={form.avatarInitial}
-                    onChange={(e) => update('avatarInitial', e.target.value)}
-                    placeholder="X"
-                    maxLength={2}
-                />
-              </div>
-            </div>
-
-            <div>
-              <label className={labelClass()}>Текущая арка</label>
-              <input
-                  className={inputClass()}
-                  value={form.arc && !form.arc.includes('Эпизод') ? form.arc : '1 Арка'}
-                  onChange={(e) => update('arc', e.target.value)}
-                  placeholder="1 Арка"
-              />
-            </div>
-
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className={labelClass()}>Роль</label>
-                <input
-                    className={inputClass()}
-                    value={form.role}
-                    onChange={(e) => update('role', e.target.value)}
-                />
-              </div>
-              <div>
-                <label className={labelClass()}>Деятельность</label>
-                <input
-                    className={inputClass()}
-                    value={form.occupation}
-                    onChange={(e) => update('occupation', e.target.value)}
-                />
-              </div>
-            </div>
-
-            <div>
-              <label className={labelClass()}>Биография</label>
-              <textarea
-                  className={`${inputClass()} min-h-[120px] resize-y`}
-                  value={form.biography}
-                  onChange={(e) => update('biography', e.target.value)}
-                  placeholder="Можно оборачивать спойлеры в ||двойные палки||"
-              />
-            </div>
+  return <>
+    <form onSubmit={submit} noValidate className="space-y-4 pb-6">
+      <div className="flex justify-between gap-3 text-xs text-slate-400"><span>{dirty ? 'Есть несохранённые изменения' : 'Нет несохранённых изменений'}</span>{record && <span>Версия {record.version}</span>}</div>
+      {stale && <div role="alert" className="panel border-amber-signal/40 p-3 text-sm text-amber-signal">{latest ? 'На сервере есть другая версия. Ваш текст сохранён в форме. Загрузите серверную версию перед редактированием.' : 'Эта запись удалена на сервере. Текст остаётся в форме для копирования.'}</div>}
+      {operation.message && <div role={operation.status === 'error' ? 'alert' : 'status'} className={`panel p-3 text-sm ${operation.status === 'error' ? 'text-rose-300' : 'text-verton'}`}>{operation.message}</div>}
+      <fieldset disabled={submitting} className="space-y-4">
+        <section className="panel p-4 space-y-4"><h2 className="font-display text-xl text-cortex">Карточка персонажа</h2>
+          {field('slug', 'Slug', { disabled: Boolean(record), required: true, maxLength: 80, hint: 'Постоянная часть ссылки. После создания не меняется.' })}
+          <div className="grid sm:grid-cols-2 gap-4">{field('name', 'Имя', { required: true, maxLength: 160 })}{field('shortName', 'Короткое имя', { required: true, maxLength: 80 })}</div>
+          <div className="grid grid-cols-2 gap-4">
+            {field('color', 'Цвет', { as: 'select', children: CHARACTER_COLORS.map(color => <option key={color} value={color}>{({ verton: 'Зелёный', qzero: 'Синий', cortex: 'Фиолетовый', terton: 'Серый' })[color]}</option>) })}
+            {field('status', 'Статус', { as: 'select', children: CHARACTER_STATUSES.map(status => <option key={status}>{status}</option>) })}
           </div>
-
-          <div className="panel p-4 space-y-3">
-            <div className="flex items-center justify-between">
-              <h3 className="text-xs font-mono uppercase tracking-widest text-slate-500">Способности</h3>
-              <button
-                  type="button"
-                  onClick={() => addListItem('abilities', '')}
-                  className="text-verton text-xs flex items-center gap-1"
-              >
-                <Plus size={13} /> добавить
-              </button>
-            </div>
-            {form.abilities.map((ability, i) => (
-                <div key={i} className="flex gap-2">
-                  <input
-                      className={inputClass()}
-                      value={ability}
-                      onChange={(e) => updateListItem('abilities', i, e.target.value)}
-                      placeholder="Название — описание способности"
-                  />
-                  <button
-                      type="button"
-                      onClick={() => removeListItem('abilities', i)}
-                      className="shrink-0 w-10 rounded-xl border border-rose-500/30 bg-rose-500/10 text-rose-400 flex items-center justify-center"
-                  >
-                    <Trash2 size={14} />
-                  </button>
-                </div>
-            ))}
-          </div>
-
-          <div className="panel p-4 space-y-3">
-            <div className="flex items-center justify-between">
-              <h3 className="text-xs font-mono uppercase tracking-widest text-slate-500">Отношения</h3>
-              <button
-                  type="button"
-                  onClick={() => addListItem('relationships', { id: '', description: '' })}
-                  className="text-verton text-xs flex items-center gap-1"
-              >
-                <Plus size={13} /> добавить
-              </button>
-            </div>
-            {form.relationships.map((rel, i) => (
-                <div key={i} className="space-y-2 pb-2 border-b border-base-600/40 last:border-none">
-                  <div className="flex gap-2">
-                    <select
-                        className={inputClass()}
-                        value={rel.id}
-                        onChange={(e) => updateObjectListItem('relationships', i, 'id', e.target.value)}
-                    >
-                      <option value="">— выбери персонажа —</option>
-                      {characters
-                          .filter((c) => c.id !== form.slug)
-                          .map((c) => (
-                              <option key={c.id} value={c.id}>{c.name}</option>
-                          ))}
-                    </select>
-                    <button
-                        type="button"
-                        onClick={() => removeListItem('relationships', i)}
-                        className="shrink-0 w-10 rounded-xl border border-rose-500/30 bg-rose-500/10 text-rose-400 flex items-center justify-center"
-                    >
-                      <Trash2 size={14} />
-                    </button>
-                  </div>
-                  <input
-                      className={inputClass()}
-                      value={rel.description}
-                      onChange={(e) => updateObjectListItem('relationships', i, 'description', e.target.value)}
-                      placeholder="создатель / лучший друг"
-                  />
-                </div>
-            ))}
-          </div>
-
-          <div className="panel p-4 space-y-3">
-            <div className="flex items-center justify-between">
-              <h3 className="text-xs font-mono uppercase tracking-widest text-slate-500">История появлений</h3>
-              <button
-                  type="button"
-                  onClick={() => addListItem('appearances', { episode: '', summary: '' })}
-                  className="text-verton text-xs flex items-center gap-1"
-              >
-                <Plus size={13} /> добавить
-              </button>
-            </div>
-            {form.appearances.map((app, i) => (
-                <div key={i} className="space-y-2 pb-2 border-b border-base-600/40 last:border-none">
-                  <div className="flex gap-2">
-                    <input
-                        className={inputClass()}
-                        value={app.episode}
-                        onChange={(e) => updateObjectListItem('appearances', i, 'episode', e.target.value)}
-                        placeholder="Эпизод 1 — Детство"
-                    />
-                    <button
-                        type="button"
-                        onClick={() => removeListItem('appearances', i)}
-                        className="shrink-0 w-10 rounded-xl border border-rose-500/30 bg-rose-500/10 text-rose-400 flex items-center justify-center"
-                    >
-                      <Trash2 size={14} />
-                    </button>
-                  </div>
-                  <textarea
-                      className={`${inputClass()} min-h-[70px] resize-y`}
-                      value={app.summary}
-                      onChange={(e) => updateObjectListItem('appearances', i, 'summary', e.target.value)}
-                      placeholder="Краткое описание того, что произошло"
-                  />
-                </div>
-            ))}
-          </div>
-
-          <button
-              type="submit"
-              disabled={saving || notSyncedYet}
-              className="w-full flex items-center justify-center gap-2 rounded-xl border border-verton/50 bg-verton/15 text-verton py-3 text-sm font-semibold active:scale-[0.98] transition-transform disabled:opacity-50"
-          >
-            {saving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
-            {saving ? 'Сохраняю...' : isEditMode ? 'Сохранить изменения' : 'Создать персонажа'}
-          </button>
-        </form>
-      </Layout>
-  )
+          {field('arc', 'Арка', { maxLength: 120, placeholder: '1 Арка' })}
+          {field('role', 'Роль', { maxLength: 200 })}
+          {field('occupation', 'Занятие', { maxLength: 200 })}
+          {field('race', 'Раса', { maxLength: 200 })}
+          {field('avatarInitial', 'Инициалы', { required: true, maxLength: 4 })}
+          {field('biography', 'Биография', { as: 'textarea', rows: 8, maxLength: 100000, hint: 'Спойлеры отмечаются двойными чертами: ||скрытый текст||.' })}
+        </section>
+        <CharacterCollections form={form} setForm={setForm} errors={errors} characters={characters} />
+      </fieldset>
+      <div className="flex flex-wrap gap-2">
+        <Button type="submit" disabled={!canMutate || submitting || Boolean(stale) || (!dirty && Boolean(record))}><Save size={16} />{submitting ? 'Сохраняем…' : 'Сохранить'}</Button>
+        <Button variant="secondary" disabled={submitting || (record && !latest)} onClick={() => setResetOpen(true)}>{stale ? 'Загрузить серверную версию' : 'Сбросить форму'}</Button>
+        <Button variant="secondary" disabled={submitting} onClick={() => navigate('/admin')}>К списку</Button>
+      </div>
+    </form>
+    <Dialog open={resetOpen} onClose={() => setResetOpen(false)} title="Сбросить форму?">
+      <p className="mb-4 text-sm text-slate-300">Введённый текст будет заменён последними загруженными данными.</p>
+      <div className="flex gap-2"><Button variant="secondary" onClick={() => setResetOpen(false)}>Продолжить редактирование</Button><Button onClick={reset}>Сбросить</Button></div>
+    </Dialog>
+    <Dialog open={blocker.state === 'blocked'} onClose={() => blocker.reset?.()} title={submitting ? 'Идёт сохранение' : 'Есть несохранённые изменения'} closeDisabled={submitting}>
+      <p className="mb-4 text-sm text-slate-300">{submitting ? 'Дождитесь ответа сервера.' : 'Остаться в редакторе или уйти без сохранения?'}</p>
+      <div className="flex gap-2"><Button onClick={() => blocker.reset?.()}>Остаться</Button>{!submitting && <Button variant="danger" onClick={() => blocker.proceed?.()}>Уйти без сохранения</Button>}</div>
+    </Dialog>
+  </>
 }

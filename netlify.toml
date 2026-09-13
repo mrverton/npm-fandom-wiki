@@ -1,0 +1,23 @@
+[build]
+  command = "npm run build && npm run check:dist"
+  publish = "dist"
+
+[build.environment]
+  NODE_VERSION = "22"
+  VITE_API_BASE_URL = "https://npm-fandom-wiki.onrender.com"
+  VITE_API_TIMEOUT_MS = "60000"
+
+[[headers]]
+  for = "/index.html"
+  [headers.values]
+    Cache-Control = "no-cache"
+
+[[headers]]
+  for = "/"
+  [headers.values]
+    Cache-Control = "no-cache"
+
+[[headers]]
+  for = "/assets/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"

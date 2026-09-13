@@ -8,6 +8,7 @@ export default function SearchBar({ value, onChange, placeholder = 'Найти �
         <Search size={18} className="text-slate-500 shrink-0" strokeWidth={2} />
         <input
           type="text"
+          aria-label={placeholder}
           value={value}
           onChange={(e) => onChange(e.target.value)}
           placeholder={placeholder}
@@ -16,8 +17,9 @@ export default function SearchBar({ value, onChange, placeholder = 'Найти �
         />
         {value && (
           <button
+            type="button"
             onClick={() => onChange('')}
-            className="text-slate-500 hover:text-slate-300 transition-colors shrink-0"
+            className="text-slate-400 hover:text-slate-300 transition-colors shrink-0 min-w-8 min-h-8 flex items-center justify-center"
             aria-label="Очистить поиск"
           >
             <X size={16} />

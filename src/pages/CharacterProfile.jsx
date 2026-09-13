@@ -1,6 +1,6 @@
 import { useState } from 'react'
-import { useParams, useNavigate, Navigate } from 'react-router-dom'
-import { Activity, GitBranch, Sparkles, Users2, Calendar, Fingerprint, Pencil, Loader2 } from 'lucide-react'
+import { Link, useParams } from 'react-router-dom'
+import { Activity, GitBranch, Sparkles, Users2, Calendar, Fingerprint, Pencil } from 'lucide-react'
 import Layout from '../components/Layout'
 import { TopBar } from '../components/TopBar'
 import StatusBadge from '../components/StatusBadge'
@@ -9,191 +9,68 @@ import { getTheme } from '../utils/theme'
 import { useCharacters } from '../context/CharactersContext'
 import { useAdmin } from '../hooks/useAdmin'
 
-const TABS = [
-  { id: 'bio', label: 'Биография' },
-  { id: 'appearances', label: 'История появлений' },
-]
-
 export default function CharacterProfile() {
   const { slug } = useParams()
-  const navigate = useNavigate()
+  const { characters, status } = useCharacters()
+  const character = characters.find((entry) => entry.slug === slug)
+  if (status === 'idle' || status === 'loading') return <Layout header={<TopBar title="Профиль персонажа" showBack />}><p role="status" className="empty-state">Загружаем персонажа…</p></Layout>
+  if (!character) return <Layout header={<TopBar title="Профиль недоступен" showBack />}>
+    <div className="empty-state space-y-4"><p>{status === 'fallback' || status === 'error' ? 'Не удалось найти профиль в доступных данных. Восстановите соединение и повторите загрузку.' : 'Такой персонаж не найден. Возможно, статья была удалена.'}</p><Link className="action-button" to="/characters">Открыть реестр</Link></div>
+  </Layout>
+  return <ProfileContent key={character.slug} character={character} characters={characters} />
+}
+
+function ProfileContent({ character, characters }) {
   const [tab, setTab] = useState('bio')
-  const { characters, loading } = useCharacters()
   const { isAdmin } = useAdmin()
-
-  const character = characters.find((c) => c.id === slug)
-
-  if (!character) {
-    if (loading) {
-      return (
-          <Layout header={<TopBar title="Загрузка..." showBack accentClass="text-qzero" />}>
-            <div className="flex flex-col items-center justify-center text-center py-20 animate-fade-in">
-              <Loader2 size={22} className="text-slate-600 animate-spin mb-3" />
-              <p className="text-slate-500 text-sm">Загружаю персонажа...</p>
-            </div>
-          </Layout>
-      )
-    }
-    return <Navigate to="/characters" replace />
-  }
-
+  const { canMutate } = useCharacters()
   const theme = getTheme(character.color)
-  const findCharacter = (id) => characters.find((c) => c.id === id)
-
-  return (
-      <Layout
-          header={
-            <TopBar
-                title={character.shortName}
-                subtitle={theme.label}
-                showBack
-                accentClass={theme.text}
-                actions={
-                  isAdmin ? (
-                      <button
-                          onClick={() => navigate(`/admin/edit/${character.id}`)}
-                          className="flex items-center gap-1.5 rounded-full border border-cortex/50 bg-cortex/10 px-3 py-1.5 text-cortex active:scale-95 transition-transform"
-                      >
-                        <Pencil size={13} />
-                        <span className="text-[11px] font-mono uppercase tracking-widest">Редактировать</span>
-                      </button>
-                  ) : null
-                }
-            />
-          }
-      >
-        <div className="space-y-5">
-          {/* Hero block */}
-          <div className={`relative panel overflow-hidden p-5 animate-fade-up border ${theme.border}`}>
-            <div className={`absolute -top-16 -right-16 w-56 h-56 rounded-full ${theme.bgSoft} blur-3xl pointer-events-none`} />
-            <div className="relative flex items-center gap-4">
-              <div className={`relative shrink-0 w-20 h-20 rounded-2xl flex items-center justify-center border-2 ${theme.borderStrong} ${theme.bgSoft} ${theme.shadow}`}>
-                <span className={`font-display font-bold text-3xl ${theme.text}`}>{character.avatarInitial}</span>
-              </div>
-              <div className="min-w-0">
-                <h2 className="font-display font-bold text-xl text-slate-50 leading-tight">{character.name}</h2>
-                <p className="text-sm text-slate-400 mt-0.5">{character.occupation}</p>
-                <div className="mt-2">
-                  <StatusBadge status={character.status} />
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Infobox */}
-          <div className="panel p-4 space-y-4 animate-fade-up" style={{ animationDelay: '60ms' }}>
-            <h3 className="text-xs font-mono uppercase tracking-widest text-slate-500 flex items-center gap-1.5">
-              <Activity size={13} /> Инфобокс
-            </h3>
-
-            <InfoRow icon={Calendar} label="Текущая арка" accent={theme.text} value={character.arc && !character.arc.includes('Эпизод') ? character.arc : '1 Арка'} />
-            <InfoRow icon={Users2} label="Роль" accent={theme.text} value={character.role} />
-            {character.race && (
-                <InfoRow icon={Fingerprint} label="Раса" accent={theme.text} value={character.race} />
-            )}
-
-            <div>
-              <div className="flex items-center gap-1.5 text-[11px] font-mono uppercase tracking-widest text-slate-500 mb-2">
-                <Sparkles size={13} /> Способности
-              </div>
-              <ul className="space-y-1.5">
-                {(character.abilities || []).map((ability, i) => (
-                    <li key={i} className="flex gap-2 text-sm text-slate-300 leading-snug">
-                      <span className={`shrink-0 mt-1.5 w-1 h-1 rounded-full ${theme.dot}`} />
-                      <SpoilerText text={ability} />
-                    </li>
-                ))}
-              </ul>
-            </div>
-
-            <div>
-              <div className="flex items-center gap-1.5 text-[11px] font-mono uppercase tracking-widest text-slate-500 mb-2">
-                <GitBranch size={13} /> Отношения
-              </div>
-              <div className="space-y-2">
-                {(character.relationships || []).map((rel) => {
-                  const other = findCharacter(rel.id)
-                  if (!other) return null
-                  const otherTheme = getTheme(other.color)
-                  return (
-                      <button
-                          key={rel.id}
-                          onClick={() => navigate(`/characters/${other.id}`)}
-                          className="w-full flex items-center gap-3 rounded-xl border border-base-600/50 bg-base-800/50 hover:bg-base-800 hover:border-base-600 p-2.5 transition-colors text-left"
-                      >
-                        <div className={`shrink-0 w-9 h-9 rounded-lg flex items-center justify-center border ${otherTheme.border} ${otherTheme.bgSoft}`}>
-                          <span className={`font-display font-semibold text-sm ${otherTheme.text}`}>{other.avatarInitial}</span>
-                        </div>
-                        <div className="min-w-0">
-                          <p className="text-sm font-medium text-slate-100 truncate">{other.name}</p>
-                          <p className="text-xs text-slate-500 truncate">{rel.description}</p>
-                        </div>
-                      </button>
-                  )
-                })}
-              </div>
-            </div>
-          </div>
-
-          {/* Tabs */}
-          <div className="animate-fade-up" style={{ animationDelay: '120ms' }}>
-            <div className="flex gap-1 p-1 rounded-xl bg-base-800/70 border border-base-600/50 mb-3">
-              {TABS.map((t) => (
-                  <button
-                      key={t.id}
-                      onClick={() => setTab(t.id)}
-                      className={`flex-1 text-xs font-medium py-2 rounded-lg transition-all duration-200 ${
-                          tab === t.id
-                              ? `${theme.bgSoft} ${theme.text} shadow-sm`
-                              : 'text-slate-500 hover:text-slate-300'
-                      }`}
-                  >
-                    {t.label}
-                  </button>
-              ))}
-            </div>
-
-            <div className="panel p-4 animate-fade-in">
-              {tab === 'bio' ? (
-                  <div className="space-y-3">
-                    {character.biography.split('\n\n').map((para, i) => (
-                        <p key={i} className="text-sm text-slate-300 leading-relaxed">
-                          <SpoilerText text={para} />
-                        </p>
-                    ))}
-                  </div>
-              ) : (
-                  <div className="space-y-3">
-                    {(character.appearances || []).map((app, i) => (
-                        <div key={i} className="relative pl-4">
-                          <span className={`absolute left-0 top-1.5 w-1.5 h-1.5 rounded-full ${theme.dot}`} />
-                          {i < character.appearances.length - 1 && (
-                              <span className="absolute left-[2.5px] top-4 bottom-[-14px] w-px bg-base-600" />
-                          )}
-                          <p className={`text-sm font-semibold ${theme.text}`}>{app.episode}</p>
-                          <p className="text-sm text-slate-400 mt-0.5 leading-relaxed">
-                            <SpoilerText text={app.summary} />
-                          </p>
-                        </div>
-                    ))}
-                  </div>
-              )}
-            </div>
-          </div>
+  return <Layout header={<TopBar title={character.shortName} subtitle={theme.label} showBack accentClass={theme.text}
+    actions={isAdmin && canMutate ? <Link to={`/admin/edit/${character.slug}`} className="icon-button text-cortex" aria-label="Редактировать персонажа"><Pencil size={17} /></Link> : null} />}>
+    <div className="space-y-5">
+      <section className={`relative panel overflow-hidden p-5 ${theme.border}`}>
+        <div className={`absolute -top-16 -right-16 w-56 h-56 rounded-full ${theme.bgSoft} blur-3xl pointer-events-none`} />
+        <div className="relative flex items-center gap-4">
+          <div className={`shrink-0 w-20 h-20 rounded-2xl flex items-center justify-center border-2 ${theme.borderStrong} ${theme.bgSoft} ${theme.shadow}`}><span className={`font-display font-bold text-3xl ${theme.text}`}>{character.avatarInitial}</span></div>
+          <div className="min-w-0"><h2 className="font-display font-bold text-xl text-slate-50 leading-tight">{character.name}</h2><p className="text-sm text-slate-400 mt-1">{character.occupation}</p><div className="mt-2"><StatusBadge status={character.status} /></div></div>
         </div>
-      </Layout>
-  )
+      </section>
+      <section className="panel p-4 space-y-4">
+        <h2 className="text-xs font-mono uppercase tracking-widest text-slate-400 flex items-center gap-1.5"><Activity size={13} />Инфобокс</h2>
+        <InfoRow icon={Calendar} label="Текущая арка" accent={theme.text} value={character.arc} />
+        <InfoRow icon={Users2} label="Роль" accent={theme.text} value={character.role} />
+        <InfoRow icon={Fingerprint} label="Раса" accent={theme.text} value={character.race} />
+        <div>
+          <h3 className="flex items-center gap-1.5 text-[11px] font-mono uppercase tracking-widest text-slate-400 mb-2"><Sparkles size={13} />Способности</h3>
+          {character.abilities.length ? <ul className="space-y-1.5">{character.abilities.map((ability, index) => <li key={`${index}-${ability}`} className="flex gap-2 text-sm text-slate-300 leading-relaxed"><span className={`shrink-0 mt-2 w-1 h-1 rounded-full ${theme.dot}`} /><SpoilerText text={ability} /></li>)}</ul> : <p className="text-sm text-slate-500">Способности ещё не описаны.</p>}
+        </div>
+        <div>
+          <h3 className="flex items-center gap-1.5 text-[11px] font-mono uppercase tracking-widest text-slate-400 mb-2"><GitBranch size={13} />Отношения</h3>
+          <div className="space-y-2">{character.relationships.length ? character.relationships.map((relation) => {
+            const other = characters.find((entry) => entry.slug === relation.slug)
+            if (!other) return <p key={relation.slug} className="rounded-xl border border-base-600/50 p-3 text-sm text-slate-400"><span className="font-medium">{relation.slug}</span> · {relation.description}<span className="block text-xs text-slate-500 mt-1">Связанный профиль сейчас недоступен.</span></p>
+            const otherTheme = getTheme(other.color)
+            return <Link key={relation.slug} to={`/characters/${other.slug}`} className="flex items-center gap-3 rounded-xl border border-base-600/50 bg-base-800/50 p-3 hover:border-base-600">
+              <div className={`shrink-0 w-10 h-10 rounded-lg flex items-center justify-center border ${otherTheme.border} ${otherTheme.bgSoft}`}><span className={`font-display font-semibold ${otherTheme.text}`}>{other.avatarInitial}</span></div>
+              <div className="min-w-0"><p className="text-sm font-medium text-slate-100">{other.name}</p><p className="text-xs text-slate-400">{relation.description}</p></div>
+            </Link>
+          }) : <p className="text-sm text-slate-500">Отношения ещё не описаны.</p>}</div>
+        </div>
+      </section>
+      <section>
+        <div className="flex gap-1 p-1 rounded-xl bg-base-800/70 border border-base-600/50 mb-3" aria-label="Раздел профиля">
+          {[{ id: 'bio', label: 'Биография' }, { id: 'appearances', label: 'История появлений' }].map((item) => <button type="button" key={item.id} aria-pressed={tab === item.id} onClick={() => setTab(item.id)} className={`flex-1 min-h-control text-xs font-medium py-2 px-1 rounded-lg ${tab === item.id ? `${theme.bgSoft} ${theme.text}` : 'text-slate-400 hover:text-slate-300'}`}>{item.label}</button>)}
+        </div>
+        <div className="panel p-4">
+          {tab === 'bio' ? <div className="space-y-3">{character.biography ? character.biography.split('\n\n').map((paragraph, index) => <p key={index} className="text-sm text-slate-300 leading-relaxed"><SpoilerText text={paragraph} /></p>) : <p className="text-sm text-slate-500">Биография ещё не опубликована.</p>}</div>
+            : <div className="space-y-4">{character.appearances.length ? character.appearances.map((appearance, index) => <div key={`${index}-${appearance.episode}`} className="relative pl-4"><span className={`absolute left-0 top-1.5 w-1.5 h-1.5 rounded-full ${theme.dot}`} /><h3 className={`text-sm font-semibold ${theme.text}`}>{appearance.episode}</h3><p className="text-sm text-slate-400 mt-1 leading-relaxed"><SpoilerText text={appearance.summary} /></p></div>) : <p className="text-sm text-slate-500">Появления ещё не добавлены.</p>}</div>}
+        </div>
+      </section>
+    </div>
+  </Layout>
 }
 
 function InfoRow({ icon: Icon, label, value, accent }) {
   if (!value) return null
-  return (
-      <div className="flex items-start gap-2.5">
-        <Icon size={15} className={`shrink-0 mt-0.5 ${accent}`} />
-        <div className="min-w-0">
-          <p className="text-[11px] font-mono uppercase tracking-widest text-slate-500">{label}</p>
-          <p className="text-sm text-slate-200 mt-0.5">{value}</p>
-        </div>
-      </div>
-  )
+  return <div className="flex items-start gap-2.5"><Icon size={15} className={`shrink-0 mt-0.5 ${accent}`} /><div className="min-w-0"><p className="text-[11px] font-mono uppercase tracking-widest text-slate-400">{label}</p><p className="text-sm text-slate-200 mt-0.5">{value}</p></div></div>
 }
