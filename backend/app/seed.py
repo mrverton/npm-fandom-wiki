@@ -1,55 +1,52 @@
-"""
-Заполняет базу данных начальными данными персонажей — теми же, что сейчас
-лежат в src/data/wiki_data.json на фронтенде. Запускается один раз
-автоматически при старте сервера, если таблица characters ещё пустая.
-"""
+"""Explicit, transactional initial import. Never called by application startup."""
+import argparse
 import json
 from pathlib import Path
+from sqlalchemy import select
+from .config import Settings
+from .database import build_engine, build_session_factory
+from .models import Character
+from .schemas import CharacterCreate
+from .services import apply_payload
 
-from sqlalchemy.orm import Session
 
-from . import models
+def seed_database(db, source: Path) -> int:
+    if db.scalar(select(Character.id).limit(1)) is not None:
+        raise ValueError("Database is not empty; seed refuses to overwrite or merge existing lore.")
+    document = json.loads(source.read_text(encoding="utf-8"))
+    payloads = []
+    for item in document["characters"]:
+        data = {key: value for key, value in item.items() if key in CharacterCreate.model_fields}
+        data.setdefault("race", None)
+        payloads.append(CharacterCreate.model_validate(data))
+    if not payloads:
+        raise ValueError("Seed file has no characters")
+    if len({item.slug for item in payloads}) != len(payloads):
+        raise ValueError("Seed file contains duplicate slugs")
+    try:
+        for payload in payloads:
+            character = Character(version=1)
+            apply_payload(character, payload)
+            db.add(character)
+        db.commit()
+    except Exception:
+        db.rollback()
+        raise
+    return len(payloads)
 
-# Путь к существующему JSON с лором (../../src/data/wiki_data.json от backend/app)
-WIKI_JSON_PATH = Path(__file__).resolve().parent.parent.parent / "src" / "data" / "wiki_data.json"
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--file", type=Path, required=True, help="Explicit path to wiki_data.json")
+    arguments = parser.parse_args()
+    engine = build_engine(Settings.from_env().database_url)
+    try:
+        with build_session_factory(engine)() as db:
+            count = seed_database(db, arguments.file)
+        print(f"Imported {count} characters. Startup will never reseed them.")
+    finally:
+        engine.dispose()
 
 
-def seed_if_empty(db: Session):
-    already_has_data = db.query(models.Character).first() is not None
-    if already_has_data:
-        return
-
-    if not WIKI_JSON_PATH.exists():
-        print(f"[seed] Файл {WIKI_JSON_PATH} не найден, пропускаю заполнение.")
-        return
-
-    with open(WIKI_JSON_PATH, "r", encoding="utf-8") as f:
-        data = json.load(f)
-
-    for char in data.get("characters", []):
-        character = models.Character(
-            slug=char["slug"],
-            name=char["name"],
-            shortName=char["shortName"],
-            color=char.get("color", "qzero"),
-            status=char.get("status", "Неизвестно"),
-            arc=char.get("arc", ""),
-            role=char.get("role", ""),
-            occupation=char.get("occupation", ""),
-            race=char.get("race"),
-            avatarInitial=char.get("avatarInitial", "?"),
-            biography=char.get("biography", ""),
-            abilities=json.dumps(char.get("abilities", []), ensure_ascii=False),
-            relationships=json.dumps(char.get("relationships", []), ensure_ascii=False),
-        )
-        for app_item in char.get("appearances", []):
-            character.appearances.append(
-                models.Appearance(
-                    episode=app_item.get("episode", ""),
-                    summary=app_item.get("summary", ""),
-                )
-            )
-        db.add(character)
-
-    db.commit()
-    print(f"[seed] Загружено персонажей: {len(data.get('characters', []))}")
+if __name__ == "__main__":
+    main()

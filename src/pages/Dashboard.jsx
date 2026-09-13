@@ -1,4 +1,5 @@
-import { useNavigate } from 'react-router-dom'
+import { useState } from 'react'
+import { Link, useNavigate } from 'react-router-dom'
 import { Users, Clock, BookOpen, Zap } from 'lucide-react'
 import Layout from '../components/Layout'
 import { TopBar } from '../components/TopBar'
@@ -7,96 +8,42 @@ import NewsFeed from '../components/NewsFeed'
 import AdminBadge from '../components/AdminBadge'
 import { useCharacters } from '../context/CharactersContext'
 import { useAdmin } from '../hooks/useAdmin'
-
-const ACCENT_CLASSES = {
-  verton: { border: 'border-verton/40', bg: 'bg-verton/10', text: 'text-verton', shadow: 'shadow-neon-verton' },
-  qzero: { border: 'border-qzero/40', bg: 'bg-qzero/10', text: 'text-qzero', shadow: 'shadow-neon-qzero' },
-  cortex: { border: 'border-cortex/40', bg: 'bg-cortex/10', text: 'text-cortex', shadow: 'shadow-neon-cortex' },
-}
+import { getTheme } from '../utils/theme'
+import { isArcAvailable } from '../data/editorial'
 
 export default function Dashboard() {
-  const navigate = useNavigate()
-  const { characters, series } = useCharacters()
+  const { characters, series, status } = useCharacters()
   const { isAdmin } = useAdmin()
-
-  // Динамически вычисляем количество арок или серий на основе данных
-  const totalArcsCount = series?.storyArcs?.length || 2; // Авто-подсчет из нового JSON от Claude
-
+  const [query, setQuery] = useState('')
+  const navigate = useNavigate()
+  const arcs = series?.arcs ?? []
+  const initialLoading = status === 'idle' || status === 'loading'
   const categories = [
-    {
-      to: '/characters',
-      title: 'Персонажи',
-      desc: `${characters.length} записи в базе`,
-      icon: Users,
-      accent: 'verton',
-    },
-    {
-      to: '/timeline',
-      title: 'Хронология серий',
-      desc: '2 эпизода в архиве',
-      icon: Clock,
-      accent: 'qzero',
-    },
-    {
-      to: '/arcs',
-      title: 'Сюжетные арки',
-      // ИСПРАВЛЕНО: Теперь вместо "1 и 2 Глава" пишется каноничное "Активные арки: 2"
-      desc: `Активные арки: ${totalArcsCount}`,
-      icon: BookOpen,
-      accent: 'cortex',
-    },
+    { to: '/characters', title: 'Персонажи', desc: initialLoading ? 'Загрузка реестра…' : `Записей в реестре: ${characters.length}`, icon: Users, color: 'verton' },
+    { to: '/timeline', title: 'Хронология серий', desc: `Эпизодов в архиве: ${arcs.reduce((sum, arc) => sum + arc.episodes.length, 0)}`, icon: Clock, color: 'qzero' },
+    { to: '/arcs', title: 'Сюжетные арки', desc: `Доступно арок: ${arcs.filter(isArcAvailable).length} из ${arcs.length}`, icon: BookOpen, color: 'cortex' },
   ]
-
   return (
-      <Layout
-          header={
-            <TopBar
-                title="НПМ Фандом Вики"
-                subtitle="npm fandom wiki // v1.0"
-                actions={isAdmin ? <AdminBadge /> : null}
-            />
-          }
-      >
-        <div className="space-y-5">
-          <div
-              className="animate-fade-up"
-              onClick={() => navigate('/characters')}
-          >
-            <SearchBar value="" onChange={() => navigate('/characters')} />
-          </div>
-
-          <section className="grid grid-cols-1 gap-3">
-            {categories.map((cat, i) => {
-              const Icon = cat.icon
-              const a = ACCENT_CLASSES[cat.accent]
-              return (
-                  <button
-                      key={cat.to}
-                      onClick={() => navigate(cat.to)}
-                      style={{ animationDelay: `${i * 70}ms` }}
-                      className="animate-fade-up panel panel-hover flex items-center gap-4 p-4 text-left active:scale-[0.98] transition-transform"
-                  >
-                    <div className={`shrink-0 w-12 h-12 rounded-xl flex items-center justify-center border ${a.border} ${a.bg} ${a.shadow}`}>
-                      <Icon size={22} className={a.text} strokeWidth={2} />
-                    </div>
-                    <div className="min-w-0">
-                      <h3 className="font-display font-semibold text-slate-50">{cat.title}</h3>
-                      <p className="text-xs text-slate-500">{cat.desc}</p>
-                    </div>
-                  </button>
-              )
-            })}
-          </section>
-
-          <section className="space-y-2">
-            <div className="flex items-center gap-2 px-1">
-              <Zap size={14} className="text-amber-signal" />
-              <h2 className="text-xs font-mono uppercase tracking-widest text-slate-500">Лента новостей</h2>
-            </div>
-            {/* Компонент NewsFeed внутри сам подхватит маркер "ПОСЛЕДНЯЯ СЕРИЯ" из нового JSON от Claude */}
-            <NewsFeed news={series.latestNews} />
-          </section>
-        </div>
-      </Layout>
+    <Layout header={<TopBar title="НПМ Фандом Вики" subtitle="npm fandom wiki" actions={isAdmin ? <AdminBadge /> : null} />}>
+      <div className="space-y-5">
+        <form onSubmit={(event) => { event.preventDefault(); navigate(`/characters?q=${encodeURIComponent(query)}`) }} className="space-y-2">
+          <SearchBar value={query} onChange={setQuery} placeholder="Найти персонажа..." />
+          {query && <button type="submit" className="action-button w-full">Найти в реестре</button>}
+        </form>
+        <section aria-label="Разделы вики" className="grid gap-3">
+          {categories.map(({ to, title, desc, icon: Icon, color }) => {
+            const theme = getTheme(color)
+            return <Link key={to} to={to} className="panel panel-hover flex items-center gap-4 p-4">
+              <div className={`shrink-0 w-12 h-12 rounded-xl flex items-center justify-center border ${theme.border} ${theme.bgSoft} ${theme.shadow}`}><Icon size={22} className={theme.text} /></div>
+              <div><h2 className="font-display font-semibold text-slate-50">{title}</h2><p className="text-xs text-slate-400">{desc}</p></div>
+            </Link>
+          })}
+        </section>
+        <section className="space-y-2" aria-labelledby="news-heading">
+          <div className="flex items-center gap-2 px-1"><Zap size={14} className="text-amber-signal" /><h2 id="news-heading" className="text-xs font-mono uppercase tracking-widest text-slate-400">Лента новостей</h2></div>
+          <NewsFeed news={series?.latestNews} />
+        </section>
+      </div>
+    </Layout>
   )
 }

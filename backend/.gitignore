@@ -3,3 +3,8 @@ __pycache__/
 npm_wiki.db
 .venv/
 venv/
+.env
+*.db
+*.db-shm
+*.db-wal
+.pytest_cache/

@@ -1,0 +1,18 @@
+{
+  "id": 1,
+  "version": 1,
+  "slug": "verton",
+  "name": "Мистер Вертон",
+  "shortName": "Вертон",
+  "color": "verton",
+  "status": "Жив",
+  "arc": "1 Арка",
+  "role": "Главный герой",
+  "occupation": "Исследователь",
+  "race": null,
+  "avatarInitial": "В",
+  "biography": "Существующая биография героя.\n\nВторая часть биографии.",
+  "abilities": ["Создание миров"],
+  "relationships": [{ "id": "qzero", "description": "Союзник" }],
+  "appearances": [{ "id": 1, "episode": "Эпизод 1", "summary": "Первое появление" }]
+}

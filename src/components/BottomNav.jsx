@@ -13,7 +13,7 @@ export default function BottomNav() {
   const { hapticSelect } = useTelegram()
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-40 safe-bottom">
+    <nav aria-label="Основная навигация" className="fixed bottom-0 left-0 right-0 z-navigation safe-bottom" style={{ paddingLeft: 'var(--safe-left)', paddingRight: 'var(--safe-right)' }}>
       <div className="absolute inset-0 bg-base-900/90 backdrop-blur-lg border-t border-base-600/50" />
       <div className="relative max-w-lg mx-auto grid grid-cols-4 px-2 pt-2 pb-2">
         {TABS.map(({ to, label, icon: Icon, end }) => (

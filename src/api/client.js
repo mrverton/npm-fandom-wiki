@@ -1,115 +1,49 @@
-import { API_BASE_URL } from '../config'
+import { config } from '../config/index.js'
+import { getAuthHeaders as readAuthHeaders } from './credentials.js'
+import { AuthenticationError, ContractError, NetworkError, TimeoutError, fromHttpError } from './errors.js'
 
-/**
- * Достаёт Telegram ID текущего пользователя из Telegram WebApp SDK.
- * Вне Telegram (обычный браузер, локальная разработка) вернёт null.
- */
-function getTelegramUserId() {
-  try {
-    return window.Telegram?.WebApp?.initDataUnsafe?.user?.id ?? null
-  } catch {
-    return null
-  }
-}
-
-async function request(
-    path,
-    {
-      method = 'GET',
-      body,
-      requireAuth = false,
-    } = {},
-) {
-  const headers = {}
-
-  // Content-Type нужен только когда реально отправляем JSON.
-  if (body !== undefined) {
-    headers['Content-Type'] = 'application/json'
-  }
-
-  if (requireAuth) {
-    const userId = getTelegramUserId()
-
-    if (userId) {
-      headers['X-Telegram-User-Id'] = String(userId)
+/** Transport only. Endpoint methods and response contracts live in separate modules. */
+export function createApiClient({ baseUrl = config.apiBaseUrl, getAuthHeaders = readAuthHeaders, timeoutMs = config.timeoutMs, fetchFn = (...args) => fetch(...args) } = {}) {
+  async function request(path, { method = 'GET', body, signal, requireAuth = false, headers: extraHeaders = {} } = {}) {
+    const headers = { Accept: 'application/json', ...extraHeaders }
+    if (body !== undefined) headers['Content-Type'] = 'application/json'
+    if (requireAuth) {
+      const authHeaders = getAuthHeaders()
+      if (!Object.keys(authHeaders).length) throw new AuthenticationError('Откройте приложение в Telegram или войдите в локальную админку.', { status: 401 })
+      Object.assign(headers, authHeaders)
     }
-  }
-
-  const url = `${API_BASE_URL}${path}`
-
-  const res = await fetch(url, {
-    method,
-    headers,
-    body: body !== undefined ? JSON.stringify(body) : undefined,
-  })
-
-  if (!res.ok) {
-    let detail = `Ошибка запроса (${res.status})`
-
+    const controller = new AbortController()
+    let timedOut = false
+    const abort = () => controller.abort()
+    if (signal?.aborted) controller.abort()
+    signal?.addEventListener('abort', abort, { once: true })
+    const timer = setTimeout(() => { timedOut = true; controller.abort() }, timeoutMs)
     try {
-      const errJson = await res.json()
-
-      if (errJson?.detail) {
-        detail =
-            typeof errJson.detail === 'string'
-                ? errJson.detail
-                : JSON.stringify(errJson.detail)
+      if (controller.signal.aborted) throw new DOMException('Aborted', 'AbortError')
+      const response = await fetchFn(`${baseUrl.replace(/\/$/, '')}${path}`, {
+        method, headers, body: body === undefined ? undefined : JSON.stringify(body), signal: controller.signal,
+        credentials: 'omit', cache: 'no-store', redirect: 'error',
+      })
+      if (response.status === 204 && response.ok) return null
+      const text = await response.text()
+      let data = null
+      if (text) {
+        try { data = JSON.parse(text) } catch {
+          if (response.ok) throw new ContractError('Сервер вернул некорректные данные. Обновите приложение.', { status: response.status })
+        }
       }
-    } catch {
-      // Ответ не JSON — оставляем стандартное сообщение.
+      if (!response.ok) throw fromHttpError(response.status, data)
+      return data
+    } catch (error) {
+      if (timedOut) throw new TimeoutError('Сервер не ответил вовремя. Проверьте соединение и обновите данные.', { code: 'timeout', cause: error })
+      if (signal?.aborted || error?.name === 'AbortError') throw new DOMException('Aborted', 'AbortError')
+      if (error instanceof TypeError) throw new NetworkError('Нет связи с сервером. Проверьте соединение и повторите запрос.', { code: 'network_error', cause: error })
+      throw error
+    } finally {
+      clearTimeout(timer)
+      signal?.removeEventListener('abort', abort)
     }
-
-    const error = new Error(detail)
-    error.status = res.status
-
-    throw error
   }
-
-  // DELETE может вернуть 204 No Content.
-  if (res.status === 204) {
-    return null
-  }
-
-  // Защита от пустого ответа.
-  const text = await res.text()
-
-  if (!text) {
-    return null
-  }
-
-  try {
-    return JSON.parse(text)
-  } catch {
-    return text
-  }
+  return { request }
 }
-
-export const api = {
-  getCharacters: () =>
-      request('/api/characters'),
-
-  getCharacter: (id) =>
-      request(`/api/characters/${id}`),
-
-  createCharacter: (payload) =>
-      request('/api/characters', {
-        method: 'POST',
-        body: payload,
-        requireAuth: true,
-      }),
-
-  updateCharacter: (id, payload) =>
-      request(`/api/characters/${id}`, {
-        method: 'PUT',
-        body: payload,
-        requireAuth: true,
-      }),
-
-  deleteCharacter: (id) =>
-      request(`/api/characters/${id}`, {
-        method: 'DELETE',
-        requireAuth: true,
-      }),
-}
-
-export { getTelegramUserId }
+export const client = createApiClient()
