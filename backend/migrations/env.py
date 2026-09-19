@@ -9,9 +9,23 @@ config = context.config
 target_metadata = Base.metadata
 
 
+def migrate_connection(connection):
+    context.configure(connection=connection, target_metadata=target_metadata,
+                      render_as_batch=connection.dialect.name == "sqlite", transaction_per_migration=False,
+                      transactional_ddl=True)
+    with context.begin_transaction():
+        context.run_migrations()
+        if connection.dialect.name == "sqlite" and connection.exec_driver_sql("PRAGMA foreign_key_check").fetchall():
+            raise RuntimeError("Migration rejected: orphan appearances found; restore or repair the backup explicitly.")
+
+
 def run_migrations():
     if context.is_offline_mode():
         raise RuntimeError("Offline migrations are unsupported: existing lore must be validated before schema changes.")
+    # Release tooling owns the outer transaction so verification can roll back DDL.
+    if config.attributes.get("connection") is not None:
+        migrate_connection(config.attributes["connection"])
+        return
     database_url = config.attributes.get("database_url") or Settings.from_env().database_url
     engine = create_engine(database_url, poolclass=pool.NullPool)
     if engine.dialect.name == "sqlite":
@@ -26,13 +40,7 @@ def run_migrations():
             connection.exec_driver_sql("BEGIN")
     try:
         with engine.connect() as connection:
-            context.configure(connection=connection, target_metadata=target_metadata,
-                              render_as_batch=engine.dialect.name == "sqlite", transaction_per_migration=False,
-                              transactional_ddl=True)
-            with context.begin_transaction():
-                context.run_migrations()
-                if engine.dialect.name == "sqlite" and connection.exec_driver_sql("PRAGMA foreign_key_check").fetchall():
-                    raise RuntimeError("Migration rejected: orphan appearances found; restore or repair the backup explicitly.")
+            migrate_connection(connection)
     finally:
         engine.dispose()
 
